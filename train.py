@@ -1,19 +1,45 @@
-import time
+import time , os
 from options.train_options import TrainOptions
 from data.data_loader import CreateDataLoader
 from models.models import create_model
 #from util.visualizer import Visualizer
+from PIL import Image
+import ntpath
 
 opt = TrainOptions().parse()
 data_loader = CreateDataLoader(opt)
 dataset = data_loader.load_data()
-#print(dataset[1].shape())
+print(dataset)
 dataset_size = len(data_loader)
 print('#training videos = %d' % dataset_size)
 
 model = create_model(opt)
 #visualizer = Visualizer(opt)
 total_steps = 0
+web_dir = os.path.join(opt.results_dir, opt.name, '%s_%s' % (opt.phase, opt.which_epoch))
+
+def save_videos(web_dir, visuals, vid_path):
+    vid_dir = os.path.join(web_dir, 'videos')
+    short_path = ntpath.basename(vid_path[0])
+    name = os.path.splitext(short_path)[0]
+
+
+    for label, vid_numpy in visuals.items():
+        vid_name = '%s_%s/' % (name, label)
+        #print(vid_name)
+        save_path = os.path.join(vid_dir, vid_name)
+        if not os.path.exists(save_path):
+            os.mkdir(save_path)
+
+        #print(vid_numpy.shape)
+
+        for i in range(vid_numpy.shape[0]):
+            #print(vid_numpy[i].shape)
+            #cv2.imwrite(save_path + "_" + str(i) + ".png", vid_numpy[i])
+            print('save_img_shape',vid_numpy[i].shape)
+            im = Image.fromarray(vid_numpy[i],'RGB')
+            im.save(save_path + "_" + str(i) + ".png")
+
 
 for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
     epoch_start_time = time.time()
@@ -32,7 +58,12 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
 
         if total_steps % opt.display_freq == 0:
             save_result = total_steps % opt.update_html_freq == 0
-            #visualizer.display_current_results(model.get_current_visuals(), epoch, save_result)
+
+            visuals = model.get_current_visuals()
+            vid_path = model.get_image_paths()
+            # print(visuals)
+            print('process video... %s' % vid_path)
+            save_videos(web_dir, visuals, vid_path)
 
         if total_steps % opt.print_freq == 0:
             errors = model.get_current_errors()

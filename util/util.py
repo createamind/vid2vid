@@ -14,15 +14,19 @@ def tensor2vid(video_tensor):
 
     video_numpy = video_tensor[0].cpu().float().numpy()
     video_numpy = (np.transpose(video_numpy, (1, 2, 3, 0)) + 1) / 2.0 * 255.0
+    print('video_numpy shape', video_numpy.shape, video_numpy.min(), video_numpy.max())
     return video_numpy
 
 
 def tensor2im(image_tensor, imtype=np.uint8):
     image_numpy = image_tensor[0].cpu().float().numpy()
+    print('trans shape',image_numpy.shape)
     if image_numpy.shape[0] == 1:
         image_numpy = np.tile(image_numpy, (3, 1, 1))
-    image_numpy = (np.transpose(image_numpy, (1, 2, 0)) + 1) / 2.0 * 255.0
-    return image_numpy.astype(imtype)
+    image_numpy = (np.transpose(image_numpy, (1, 2, 0)) + 1) *127.5
+    res = np.asarray(image_numpy , dtype = imtype) #image_numpy.astype(imtype)
+    print('res shape', res.shape,res.min(),res.max())
+    return res
 
 
 def diagnose_network(net, name='network'):

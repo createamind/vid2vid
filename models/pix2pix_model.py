@@ -70,7 +70,7 @@ class Pix2PixModel(BaseModel):
         #input_B = input['B' if AtoB else 'A']
         input_A = torch.from_numpy(input['A' if AtoB else 'B'])
 
-        print("======input A SIZE==== {0}".format(input_A.size()))
+        #print("======input A SIZE==== {0}".format(input_A.size()))
         input_B = torch.from_numpy(input['B' if AtoB else 'A'])
         self.input_A.resize_(input_A.size()).copy_(input_A)
         self.input_B.resize_(input_B.size()).copy_(input_B)

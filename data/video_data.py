@@ -30,9 +30,9 @@ class VideoDataset(BaseDataset):
     def __getitem__(self, index):
         AB_path = self.data_list[index]
         AB = np.load(AB_path)
-        A = AB[:1]
+        A = AB[:1]/127.5 -1.
         #print("====== load A size ==== {0}".format(A.shape))
-        B = AB[1:]
+        B = AB[1:]/127.5 -1.
         return {'A': A, 'B': B,
                 'A_paths': AB_path, 'B_paths': AB_path}
 

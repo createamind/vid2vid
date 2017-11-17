@@ -33,7 +33,7 @@ def save_videos(web_dir, visuals, vid_path):
 
 
     for label, vid_numpy in visuals.items():
-        vid_name = '%s_%s' % (name, label)
+        vid_name = '%s_%s/' % (name, label)
         #print(vid_name)
         save_path = os.path.join(vid_dir, vid_name)
 
@@ -44,7 +44,6 @@ def save_videos(web_dir, visuals, vid_path):
             #cv2.imwrite(save_path + "_" + str(i) + ".png", vid_numpy[i])
             im = Image.fromarray(vid_numpy[i])
             im.save(save_path + "_" + str(i) + ".png")
-        #for i in range(len(vid_numpy)):
 
 
 '''

@@ -67,14 +67,16 @@ class Pix2PixModel(BaseModel):
         ## numpy to torch tensor
         #input_A = input['A' if AtoB else 'B']
         #input_B = input['B' if AtoB else 'A']
-        input_A = torch.from_numpy(input['A' if AtoB else 'B'])
+        input_A = torch.from_numpy(input['A' if AtoB else 'B'], )
+
         input_B = torch.from_numpy(input['B' if AtoB else 'A'])
         self.input_A.resize_(input_A.size()).copy_(input_A)
         self.input_B.resize_(input_B.size()).copy_(input_B)
         # convert to cuda
         if torch.cuda.is_available():
-            self.input_A = input_A.cuda()
-            self.input_B = input_B.cuda()
+            input_A = input_A.cuda()
+            input_B = input_B.cuda()
+        #print(input_A.shape())
 
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
 
@@ -98,7 +100,8 @@ class Pix2PixModel(BaseModel):
         # stop backprop to the generator by detaching fake_B
         #fake_AB = self.fake_AB_pool.query(torch.cat((self.real_A, self.fake_B), 1).data)
         fake_AB = torch.cat((self.real_A, self.fake_B), 1).data
-        pred_fake = self.netD(fake_AB.detach())
+        fake_AB_ = Variable(fake_AB)
+        pred_fake = self.netD(fake_AB_.detach())
         self.loss_D_fake = self.criterionGAN(pred_fake, False)
 
         # Real

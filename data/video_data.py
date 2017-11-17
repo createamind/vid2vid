@@ -14,25 +14,24 @@ def make_dataset(data_path):
 class VideoDataset(BaseDataset):
 
     def initialize(self, opt):
-        opt = namedtuple('option', ['dataroot', 'phase'])
-        opt.dataroot = '.'
-        opt.phase = 'data'
+        #opt = namedtuple('option', ['dataroot', 'phase'])
+        #opt.dataroot = '.'
+        #opt.phase = 'data'
         
-        self.opt = opt
-        self.root = opt.dataroot
-        self.data_path = os.path.join(opt.dataroot, opt.phase)
-        self.data_list = make_dataset(self.data_path)
+        #self.opt = opt
+        #self.root = opt.dataroot
+        #self.data_path = os.path.join(opt.dataroot, opt.phase)
+        self.data_list = make_dataset(opt.dataroot)
         print(self.data_list)
 
-        transform_list = [transforms.ToTensor()]
-
-        # self.transform = transforms.Compose(transform_list)
+        #transform_list = [transforms.ToTensor()]
+        #self.transform = transforms.Compose(transform_list)
 
     def __getitem__(self, index):
         AB_path = self.data_list[index]
         AB = np.load(AB_path)
-        A = AB[0]
-        B = AB[1]
+        A = AB[:1]
+        B = AB[1:]
         return {'A': A, 'B': B,
                 'A_paths': AB_path, 'B_paths': AB_path}
 
@@ -41,17 +40,15 @@ class VideoDataset(BaseDataset):
 
     def name(self):
         return 'VideoDataset'
-'''
+
 if __name__ == '__main__':
-    opt = namedtuple('option',['dataroot','phase'])
-    opt.dataroot = '.'
-    opt.phase = 'data'
-    v = VedeoDataset()
+    opt = namedtuple('option',['dataroot'])
+    opt.dataroot = './data/'
+    v = VideoDataset()
     v.initialize(opt)
     for i in range(10):
-        a = np.ones([2,3,7,256,256])
+        a = np.ones([2,3,7,256,256], dtype=np.float32)
         np.save('data/{}.npy'.format(i),a)
     for i in v:
         print(i['A'].shape)
-'''
 

@@ -8,6 +8,7 @@ def CreateDataset(opt):
     if opt.dataset_mode == 'aligned':
         from data.aligned_dataset import AlignedDataset
         dataset = AlignedDataset()
+    ## add 3D videodataset loader
     elif opt.dataset_mode == 'v':
         from data.video_data import VideoDataset
         dataset = VideoDataset()

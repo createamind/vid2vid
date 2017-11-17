@@ -7,8 +7,9 @@ from models.models import create_model
 opt = TrainOptions().parse()
 data_loader = CreateDataLoader(opt)
 dataset = data_loader.load_data()
+#print(dataset[1].shape())
 dataset_size = len(data_loader)
-print('#training images = %d' % dataset_size)
+print('#training videos = %d' % dataset_size)
 
 model = create_model(opt)
 #visualizer = Visualizer(opt)
@@ -19,8 +20,9 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
     epoch_iter = 0
 
     for i, data in enumerate(dataset):
-        print('============== i:' + str(i))
-        print('============== data:' + str(data))
+
+        #print(data.shape())
+
         iter_start_time = time.time()
         #visualizer.reset()
         total_steps += opt.batchSize

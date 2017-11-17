@@ -22,7 +22,7 @@ class VideoDataset(BaseDataset):
         #self.root = opt.dataroot
         #self.data_path = os.path.join(opt.dataroot, opt.phase)
         self.data_list = make_dataset(opt.dataroot)
-        print(self.data_list)
+        #print(self.data_list)
 
         #transform_list = [transforms.ToTensor()]
         #self.transform = transforms.Compose(transform_list)
@@ -31,6 +31,7 @@ class VideoDataset(BaseDataset):
         AB_path = self.data_list[index]
         AB = np.load(AB_path)
         A = AB[:1]
+        #print("====== load A size ==== {0}".format(A.shape))
         B = AB[1:]
         return {'A': A, 'B': B,
                 'A_paths': AB_path, 'B_paths': AB_path}

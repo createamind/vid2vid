@@ -15,6 +15,7 @@ class Pix2PixModel(BaseModel):
 
     def initialize(self, opt):
         BaseModel.initialize(self, opt)
+        self.dataset_mode = opt.dataset_mode
         self.isTrain = opt.isTrain
         # define tensors
         # 3D tensor shape (N,Cin,Din,Hin,Win)
@@ -67,16 +68,16 @@ class Pix2PixModel(BaseModel):
         ## numpy to torch tensor
         #input_A = input['A' if AtoB else 'B']
         #input_B = input['B' if AtoB else 'A']
-        input_A = torch.from_numpy(input['A' if AtoB else 'B'], )
+        input_A = torch.from_numpy(input['A' if AtoB else 'B'])
 
+        print("======input A SIZE==== {0}".format(input_A.size()))
         input_B = torch.from_numpy(input['B' if AtoB else 'A'])
         self.input_A.resize_(input_A.size()).copy_(input_A)
         self.input_B.resize_(input_B.size()).copy_(input_B)
         # convert to cuda
         if torch.cuda.is_available():
-            input_A = input_A.cuda()
-            input_B = input_B.cuda()
-        #print(input_A.shape())
+            self.input_A = self.input_A.cuda()
+            self.input_B = self.input_B.cuda()
 
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
 
@@ -88,6 +89,7 @@ class Pix2PixModel(BaseModel):
     # no backprop gradients
     def test(self):
         self.real_A = Variable(self.input_A, volatile=True)
+        #print("===================={0}".format(self.real_A))
         self.fake_B = self.netG(self.real_A)
         self.real_B = Variable(self.input_B, volatile=True)
 
@@ -146,9 +148,14 @@ class Pix2PixModel(BaseModel):
                             ])
 
     def get_current_visuals(self):
-        real_A = util.tensor2im(self.real_A.data)
-        fake_B = util.tensor2im(self.fake_B.data)
-        real_B = util.tensor2im(self.real_B.data)
+        if self.dataset_mode == 'v':
+            real_A = util.tensor2vid(self.real_A.data)
+            fake_B = util.tensor2vid(self.fake_B.data)
+            real_B = util.tensor2vid(self.real_B.data)
+        else:
+            real_A = util.tensor2im(self.real_A.data)
+            fake_B = util.tensor2im(self.fake_B.data)
+            real_B = util.tensor2im(self.real_B.data)
         return OrderedDict([('real_A', real_A), ('fake_B', fake_B), ('real_B', real_B)])
 
     def save(self, label):

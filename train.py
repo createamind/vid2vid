@@ -1,11 +1,11 @@
-import time , os
+import time , os ,cv2
 from options.train_options import TrainOptions
 from data.data_loader import CreateDataLoader
 from models.models import create_model
 #from util.visualizer import Visualizer
 from PIL import Image
 import ntpath
-
+import numpy as np
 opt = TrainOptions().parse()
 data_loader = CreateDataLoader(opt)
 dataset = data_loader.load_data()
@@ -17,6 +17,16 @@ model = create_model(opt)
 #visualizer = Visualizer(opt)
 total_steps = 0
 web_dir = os.path.join(opt.results_dir, opt.name, '%s_%s' % (opt.phase, opt.which_epoch))
+def ck_array(i,o):
+    i_A = np.transpose(127.5*(i['A']+1.)[0],(1,2,3,0))
+    i_B = np.transpose(127.5*(i['B']+1.)[0],(1,2,3,0))
+    o_A = o['real_A']
+    o_B = o['real_B']
+    a_diff = i_A - o_A
+    b_diff = i_B - o_B
+    print('diffa',a_diff.max(),a_diff.min(),a_diff.mean())
+    print('diffb', b_diff.max(), b_diff.min(), b_diff.mean())
+
 
 def save_videos(web_dir, visuals, vid_path):
     vid_dir = os.path.join(web_dir, 'videos')
@@ -35,10 +45,10 @@ def save_videos(web_dir, visuals, vid_path):
 
         for i in range(vid_numpy.shape[0]):
             #print(vid_numpy[i].shape)
-            #cv2.imwrite(save_path + "_" + str(i) + ".png", vid_numpy[i])
+            cv2.imwrite(save_path + "_" + str(i) + ".png", vid_numpy[i])
             print('save_img_shape',vid_numpy[i].shape)
-            im = Image.fromarray(vid_numpy[i],'RGB')
-            im.save(save_path + "_" + str(i) + ".png")
+            # im = Image.fromarray(vid_numpy[i],'RGB')
+            # im.save(save_path + "_" + str(i) + ".png")
 
 
 for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
@@ -60,6 +70,7 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
             save_result = total_steps % opt.update_html_freq == 0
 
             visuals = model.get_current_visuals()
+            ck_array(data, visuals)
             vid_path = model.get_image_paths()
             # print(visuals)
             print('process video... %s' % vid_path)

@@ -24,8 +24,8 @@ def ck_array(i,o):
     o_B = o['real_B']
     a_diff = i_A - o_A
     b_diff = i_B - o_B
-    #print('diffa',a_diff.max(),a_diff.min(),a_diff.mean())
-    #print('diffb', b_diff.max(), b_diff.min(), b_diff.mean())
+    print('diffa',a_diff.max(),a_diff.min(),a_diff.mean())
+    print('diffb', b_diff.max(), b_diff.min(), b_diff.mean())
 
 
 def save_videos(web_dir, visuals, vid_path):
@@ -70,7 +70,7 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
             save_result = total_steps % opt.update_html_freq == 0
 
             visuals = model.get_current_visuals()
-            ck_array(data, visuals)
+            #ck_array(data, visuals)
             vid_path = model.get_image_paths()
             # print(visuals)
             print('process video... %s,progress %d' % (vid_path, i) )

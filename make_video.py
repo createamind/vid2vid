@@ -85,28 +85,36 @@ class ImageEncoder(object):
             raise Exception("VideoRecorder encoder exited with status {}".format(ret))
 
 def comine_arr(result):
-    real_A = result['real_A']
-    real_B = result['real_B']
-    fake_B = result['fake_B']
-    if len(real_A.shape) ==5:
-        print('real_A.shape',real_A.shape)
-        real_A = real_A[0]
-        real_B = real_B[0]
-        fake_B = fake_B[0]
-    real_A= np.transpose(real_A[0], (1, 2, 3, 0))
-    real_B = np.transpose(real_B[0], (1, 2, 3, 0))
-    fake_B = np.transpose(fake_B[0], (1, 2, 3, 0))
+    print('comb shape',result['real_A'].shape)
+    real_A = result['real_A'][0]
+    real_B = result['real_B'][0]
+    fake_B = result['fake_B'][0]
+    # if len(real_A.shape) ==5:
+    #     print('real_A.shape',real_A.shape)
+    #     real_A = real_A[0]
+    #     real_B = real_B[0]
+    #     fake_B = fake_B[0]
+    # real_A= np.transpose(real_A[0], (1, 2, 3, 0))
+    # real_B = np.transpose(real_B[0], (1, 2, 3, 0))
+    # fake_B = np.transpose(fake_B[0], (1, 2, 3, 0))
+    v = []
+    big_arr = np.ones([256,256*3,3],np.float32)
+    for a,b,c in zip(real_A,real_B,fake_B):
+        big_arr[:,:256,:] = real_A
+        big_arr[:, 256:256*2, :] = real_B
+        big_arr[:, 256*2:, :] = fake_B
+        v.append(big_arr)
 
-    big_arr = np.ones([256,256*3,3])
-    big_arr[:,:255,:] = real_A
-    big_arr[:, 255:255*2, :] = real_B
-    big_arr[:, :255*2, :] = fake_B
-    return big_arr
+    vs = np.asarray(v,dtype = np.float32)/255.
+    print('final array',vs.max(),vs.min())
+    return vs
 
-def save_video(result,name,fps =12,dir_path= '/tmp'):
+def save_video(result,name,fps =24,dir_path= '/tmp'):
     frames = comine_arr(result)
 
+
     shape = frames[0].shape
+    print('{}/{}.mp4'.format(dir_path,name))
 
     encoder = ImageEncoder('{}/{}.mp4'.format(dir_path,name), shape, fps)
 

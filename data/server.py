@@ -121,7 +121,7 @@ def start_server(port = '5557' ,hwm =20):
 
     while 1:
         if opt.load_video == 1:
-            data_path, gen = video_data_gen(random.choice(f_lst), skip = 2, length = 7, overlap=2)
+            data_path, gen = video_data_gen(random.choice(f_lst), skip = 1, length = 20, overlap=0)
             print(data_path, gen)
             try:
                 [s.send_array_(data.copy(order='C'), copy=False, filename=data_path) for data in gen]

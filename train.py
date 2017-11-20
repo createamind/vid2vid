@@ -36,15 +36,16 @@ def save_videos(web_dir, visuals, vid_path, epoch):
     #print("vid_dir: {}".format(vid_dir))
     #print("name: {}".format(name))
 
-    vid_numpy = np.concatenate((visuals['real_A'], visuals['real_B'], visuals['fake_B']), axis=2)
+    vid_numpy = np.concatenate((visuals['real_B'], visuals['real_A'], visuals['fake_B']), axis=2)
     #print(vid_numpy.shape)
 
     for i in range(vid_numpy.shape[0]):
         save_path = os.path.join(vid_dir, str(epoch)) + '/'
-        save_name = name + '_' + str(i) +'.png'
+        #save_name = name + '_' + str(i) +'.png'
+        save_name =  str(i) + '.png'
 
         if not os.path.exists(save_path):
-            os.mkdir(save_path)
+            os.makedirs(save_path)
 
         img = vid_numpy[i][:, :, ::-1]
         #print(img.shape)

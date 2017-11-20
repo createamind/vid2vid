@@ -36,7 +36,7 @@ def gen_np(c):
     return v
 
 
-def dump(img_lst, dirpath = 'data', start = 0, skip = 2, length = 7, pre = 2):
+def dump(img_lst, dirpath = 'data', start = 0, skip = 1, length = 20, pre = 0):
     a, b = get_pair(img_lst, pre, skip, length)
     task = [(i, j) for i, j in zip(a, b)]
     gen = (gen_np(j) for j in task)
@@ -70,7 +70,7 @@ def gen_frame(i, frames_lst, length, overlap):
     return v
 
 
-def video_data_gen(vid_path, length=7, skip=2, overlap=1):
+def video_data_gen(vid_path, length=20, skip=1, overlap=0):
     #if not os.path.exists(out_path):
         #os.mkdir(out_path)
 

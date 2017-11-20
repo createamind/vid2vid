@@ -28,36 +28,29 @@ web_dir = os.path.join(opt.results_dir, opt.name, '%s_%s' % (opt.phase, opt.whic
 
 def save_videos(web_dir, visuals, vid_path):
     vid_dir = os.path.join(web_dir, 'videos')
-    short_path = ntpath.basename(vid_path[0])
-    name = os.path.splitext(short_path)[0]
+    name = ntpath.basename(vid_path).split('.')[0]
+    #print("vid_dir: {}".format(vid_dir))
+    #print("name: {}".format(name))
 
+    vid_numpy = np.concatenate((visuals['real_A'], visuals['real_B'], visuals['fake_B']), axis=2)
+    #print(vid_numpy.shape)
 
-    for label, vid_numpy in visuals.items():
-        vid_name = '%s_%s/' % (name, label)
-        #print(vid_name)
-        save_path = os.path.join(vid_dir, vid_name)
+    for i in range(vid_numpy.shape[0]):
+        save_path = vid_dir
+        save_name = name + '_' + str(i) +'.png'
+        print("save_path: {}".format(save_path+save_name))
 
-        #print(vid_numpy.shape)
+        if not os.path.exists(save_path):
+            os.mkdir(save_path)
 
-        for i in range(vid_numpy.shape[0]):
-            #print(vid_numpy[i].shape)
-            #cv2.imwrite(save_path + "_" + str(i) + ".png", vid_numpy[i])
-            im = Image.fromarray(vid_numpy[i])
-            im.save(save_path + "_" + str(i) + ".png")
-
-
-'''
-        writer = skvideo.io.FFmpegWriter(save_path, list(vid_numpy.shape))
-        for i in xrange(list(vid_numpy.shape)[0]):
-            writer.writeFrame(vid_numpy[i, :, :, :])
-        writer.close()
-'''
-
+        img = vid_numpy[i][:, :, ::-1]
+        #print(img.shape)
+        cv2.imwrite(save_path+save_name, img)
 
 
 for i, data in enumerate(dataset):
     if i >= opt.how_many:
-        break
+        print('break')
     model.set_input(data)
     model.test()
     visuals = model.get_current_visuals()

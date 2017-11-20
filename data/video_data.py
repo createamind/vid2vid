@@ -7,6 +7,11 @@ import glob
 import numpy as np
 from collections import namedtuple
 
+
+server_ports = range(5550, 5558, 2)
+from data.server import client
+c = client(ports = server_ports)
+
 def make_dataset(data_path):
     file_list = glob.glob(os.path.join(data_path,'*.npy'))
     return file_list
@@ -28,8 +33,10 @@ class VideoDataset(BaseDataset):
         #self.transform = transforms.Compose(transform_list)
 
     def __getitem__(self, index):
-        AB_path = self.data_list[index]
-        AB = np.load(AB_path)
+
+        #AB = np.load(AB_path)
+        filename, AB = next(c)
+        AB_path = filename
         A = AB[:1]/127.5 -1.
         #print("====== load A size ==== {0}".format(A.shape))
         B = AB[1:]/127.5 -1.

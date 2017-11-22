@@ -40,7 +40,7 @@ def save_videos(web_dir, visuals, vid_path, epoch):
     A = visuals['real_A']
     last_A = np.tile(A[-1], (A.shape[0], 1, 1, 1))
     #print("A_last shape: {}".format(A[-1].shape))
-    print('last_A: {}'.format(last_A.shape))
+    #print('last_A: {}'.format(last_A.shape))
     B = visuals['real_B']
     first_B  = np.tile(B[0], (A.shape[0], 1, 1, 1))
     fake = visuals['fake_B']
@@ -54,7 +54,7 @@ def save_videos(web_dir, visuals, vid_path, epoch):
     vid_BC = np.concatenate((B, fake), axis=1)
     vid_BC2 = np.concatenate((blackforBC, vid_BC), axis=2)
     vid_numpy = np.concatenate((vid_A2, vid_BC2), axis=0)
-    print("output_img_shape: {}".format(vid_numpy.shape))
+    #print("output_img_shape: {}".format(vid_numpy.shape))
 
     #vid_numpy = np.concatenate((visuals['real_A'], visuals['real_B'], visuals['fake_B']), axis=2)
     #print(vid_numpy.shape)
@@ -121,7 +121,7 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
 
 
         if total_steps % 20010 == 0:
-            print('saving the latest model (epoch %d, total_steps %d)' %
+            print('saving the 20010 model (epoch %d, total_steps %d)' %
                   (epoch, total_steps))
             model.save(total_steps)
 

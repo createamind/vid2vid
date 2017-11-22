@@ -8,8 +8,8 @@ class TrainOptions(BaseOptions):
         self.parser.add_argument('--display_single_pane_ncols', type=int, default=0, help='if positive, display all images in a single visdom web panel with certain number of images per row.')
         self.parser.add_argument('--update_html_freq', type=int, default=1000, help='frequency of saving training results to html')
         self.parser.add_argument('--print_freq', type=int, default=100, help='frequency of showing training results on console')
-        self.parser.add_argument('--save_latest_freq', type=int, default=2000, help='frequency of saving the latest results')
-        self.parser.add_argument('--save_epoch_freq', type=int, default=1, help='frequency of saving checkpoints at the end of epochs')
+        self.parser.add_argument('--save_latest_freq', type=int, default=5000, help='frequency of saving the latest results')
+        self.parser.add_argument('--save_epoch_freq', type=int, default=5, help='frequency of saving checkpoints at the end of epochs')
         self.parser.add_argument('--continue_train', action='store_true', help='continue training: load the latest model')
         self.parser.add_argument('--epoch_count', type=int, default=1, help='the starting epoch count, we save the model by <epoch_count>, <epoch_count>+<save_latest_freq>, ...')
         self.parser.add_argument('--phase', type=str, default='train', help='train, val, test, etc')
@@ -30,5 +30,10 @@ class TrainOptions(BaseOptions):
         self.parser.add_argument('--load_video', type=int, default=1, help='load data = 1 | load image = 0')
         self.parser.add_argument('--data_dir', type=str, default='/data/dataset/UCF/',
                                  help='video or images data repository')
+        self.parser.add_argument('--depth', type=int, default=7, help='3D Video frames length')
+        self.parser.add_argument('--skip', type=int, default=2, help='skip how many frames to catch data')
+        self.parser.add_argument('--overlap', type=int, default=1, help='how many frames B will have as same as A')
+
+
 
         self.isTrain = True

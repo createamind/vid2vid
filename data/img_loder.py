@@ -1,4 +1,4 @@
-import os, glob
+import glob
 import cv2
 import numpy as np
 import skvideo.io
@@ -36,18 +36,13 @@ def gen_np(c):
     return v
 
 
-def dump(img_lst, dirpath = 'data', start = 0, skip = 1, length = 20, pre = 0):
+def dump(img_lst, dirpath = 'data', start = 0, skip = 2, length = 7, pre = 2):
     a, b = get_pair(img_lst, pre, skip, length)
     task = [(i, j) for i, j in zip(a, b)]
     gen = (gen_np(j) for j in task)
     return gen
 
 
-
-    # np.save('{}{}.npy'.format(dirpath,i+start),v)
-
-
-#         return
 def data_gen(data_path, skip, length, pre):
     start = 0
     img_lst = glob.glob(data_path + "**.png")
@@ -70,7 +65,7 @@ def gen_frame(i, frames_lst, length, overlap):
     return v
 
 
-def video_data_gen(vid_path, length=20, skip=1, overlap=0):
+def video_data_gen(vid_path, length=7, skip=2, overlap=1):
     #if not os.path.exists(out_path):
         #os.mkdir(out_path)
 
@@ -85,15 +80,3 @@ def video_data_gen(vid_path, length=20, skip=1, overlap=0):
     gen = (gen_frame(i, frames_lst=frames_lst, length=length, overlap=overlap) for i in range(n))
 
     return vid_path, gen
-
-'''
-
-    for i in range(n):
-        A = np.asarray(frames_lst[i:i + length])
-        B = np.asarray(frames_lst[i + length - overlap:i + length * 2 - overlap])
-        v = np.asarray([A, B])
-        v = np.transpose(v, (0, 4, 1, 2, 3))
-        np.save('{}{}_{}.npy'.format(out_path, vid_name, i), v)
-
-        n += 1
-'''

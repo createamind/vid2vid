@@ -2,10 +2,12 @@ import time , os ,cv2
 from options.train_options import TrainOptions
 from data.data_loader import CreateDataLoader
 from models.models import create_model
-#from util.visualizer import Visualizer
-from PIL import Image
 import ntpath
 import numpy as np
+import skvideo.io
+
+
+output_video = False
 opt = TrainOptions().parse()
 data_loader = CreateDataLoader(opt)
 dataset = data_loader.load_data()
@@ -14,11 +16,10 @@ dataset_size = len(data_loader)
 print('#training videos = %d' % dataset_size)
 
 model = create_model(opt)
-#visualizer = Visualizer(opt)
 opt.results_dir = './results/'
 total_steps = 0
-print(opt.results_dir)
 web_dir = os.path.join(opt.results_dir, opt.name, '%s_%s' % (opt.phase, opt.which_epoch))
+
 def ck_array(i,o):
     i_A = np.transpose(127.5*(i['A']+1.)[0],(1,2,3,0))
     i_B = np.transpose(127.5*(i['B']+1.)[0],(1,2,3,0))
@@ -36,21 +37,47 @@ def save_videos(web_dir, visuals, vid_path, epoch):
     #print("vid_dir: {}".format(vid_dir))
     #print("name: {}".format(name))
 
-    vid_numpy = np.concatenate((visuals['real_A'], visuals['real_B'], visuals['fake_B']), axis=2)
+    A = visuals['real_A']
+    last_A = np.tile(A[-1], (A.shape[0], 1, 1, 1))
+    #print("A_last shape: {}".format(A[-1].shape))
+    print('last_A: {}'.format(last_A.shape))
+    B = visuals['real_B']
+    first_B  = np.tile(B[0], (A.shape[0], 1, 1, 1))
+    fake = visuals['fake_B']
+    first_fake = np.tile(fake[0], (A.shape[0], 1, 1, 1))
+    black = np.ones_like(A)
+    blackforA = np.concatenate((first_B, first_fake), axis=1)
+    blackforBC = np.concatenate((last_A, black), axis=1)
+
+    vid_A = np.concatenate((A, black), axis=1)
+    vid_A2 = np.concatenate((vid_A, blackforA), axis=2)
+    vid_BC = np.concatenate((B, fake), axis=1)
+    vid_BC2 = np.concatenate((blackforBC, vid_BC), axis=2)
+    vid_numpy = np.concatenate((vid_A2, vid_BC2), axis=0)
+    print("output_img_shape: {}".format(vid_numpy.shape))
+
+    #vid_numpy = np.concatenate((visuals['real_A'], visuals['real_B'], visuals['fake_B']), axis=2)
     #print(vid_numpy.shape)
+    save_path = os.path.join(vid_dir, str(epoch)) + '/'
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    save_name = name + '_' + '.mp4'
 
-    for i in range(vid_numpy.shape[0]):
-        save_path = os.path.join(vid_dir, str(epoch)) + '/'
-        #save_name = name + '_' + str(i) +'.png'
-        save_name =  str(i) + '.png'
+    skvideo.io.vwrite(save_path+save_name, vid_numpy,
+                      inputdict={'-r': '12'},
+                      outputdict={'-r': '12'})
+    print('save video at ', save_path + save_name)
 
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
+    while output_video:
 
-        img = vid_numpy[i][:, :, ::-1]
-        #print(img.shape)
-        print('save path ',save_path+save_name)
-        cv2.imwrite(save_path+save_name, img)
+        for i in range(vid_numpy.shape[0]):
+            save_name = name + '_' + str(i) +'.png'
+            #save_name =  str(i) + '.png'
+
+            img = vid_numpy[i][:, :, ::-1]
+            #print(img.shape)
+            print('save path ',save_path+save_name)
+            cv2.imwrite(save_path+save_name, img)
 
 
 
@@ -91,6 +118,12 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
             print('saving the latest model (epoch %d, total_steps %d)' %
                   (epoch, total_steps))
             model.save('latest')
+
+
+        if total_steps % 20010 == 0:
+            print('saving the latest model (epoch %d, total_steps %d)' %
+                  (epoch, total_steps))
+            model.save(total_steps)
 
 
 

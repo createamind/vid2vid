@@ -10,7 +10,7 @@ from collections import namedtuple
 
 server_ports = range(5550, 5558, 2)
 from data.server import client
-c = client(ports = server_ports)
+
 
 def make_dataset(data_path):
     file_list = glob.glob(os.path.join(data_path,'*.npy'))
@@ -27,15 +27,19 @@ class VideoDataset(BaseDataset):
         #self.root = opt.dataroot
         #self.data_path = os.path.join(opt.dataroot, opt.phase)
         self.data_list = make_dataset(opt.dataroot)
+        self.c = client( depth = opt.depth)
+        self.max_size = opt.max_dataset_size
         #print(self.data_list)
 
         #transform_list = [transforms.ToTensor()]
         #self.transform = transforms.Compose(transform_list)
 
     def __getitem__(self, index):
+        if index >= self.max_size:
+            raise IndexError
 
         #AB = np.load(AB_path)
-        filename, AB = next(c)
+        filename, AB = next(self.c)
         AB_path = filename
         A = AB[:1]/127.5 -1.
         #print("====== load A size ==== {0}".format(A.shape))

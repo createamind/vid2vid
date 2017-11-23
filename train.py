@@ -5,6 +5,7 @@ from models.models import create_model
 import ntpath
 import numpy as np
 import skvideo.io
+import time
 
 
 output_video = False
@@ -33,7 +34,9 @@ def ck_array(i,o):
 
 def save_videos(web_dir, visuals, vid_path, epoch):
     vid_dir = os.path.join(web_dir, 'videos')
-    name = ntpath.basename(vid_path).split('.')[0]
+    #name = ntpath.basename(vid_path).split('.')[0]
+    # add data generation time as name
+    name = time.strftime('%Y%m%d-%H%M%S')
     #print("vid_dir: {}".format(vid_dir))
     #print("name: {}".format(name))
 

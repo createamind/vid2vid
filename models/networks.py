@@ -119,7 +119,7 @@ def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropo
     else:
         raise NotImplementedError('Generator model name [%s] is not recognized' % which_model_netG)
     if len(gpu_ids) > 0:
-        netG.cuda()
+        netG.cuda(gpu_ids[0])
     init_weights(netG, init_type=init_type)
     return netG
 
@@ -140,7 +140,7 @@ def define_D(input_nc, ndf, which_model_netD,
         raise NotImplementedError('Discriminator model name [%s] is not recognized' %
                                   which_model_netD)
     if use_gpu:
-        netD.cuda()
+        netD.cuda(gpu_ids[0])
     init_weights(netD, init_type=init_type)
     return netD
 
@@ -383,9 +383,22 @@ class UnetSkipConnectionBlock(nn.Module):
 
     def forward(self, x):
         if self.outermost:
-            return self.model(x)
+            x_ = self.model(x)
+            # print('x size 233333333333', x.size(), 'x_ size', x_.size())
+            return x_
         else:
-            return torch.cat([x, self.model(x)], 1)
+            try:
+                x_ = self.model(x)
+            except Exception as e:
+                print('model error',e)
+                print('input size ', x.size(),)
+                raise ValueError
+            try :
+                return torch.cat([x, x_], 1)
+            except Exception as e:
+                print('cat error ',e)
+                print('x size', x.size(), 'x_ size',x_.size())
+                raise ValueError
 
 '''
     2dcnn Shape:

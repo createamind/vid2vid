@@ -27,7 +27,7 @@ class VideoDataset(BaseDataset):
         #self.root = opt.dataroot
         #self.data_path = os.path.join(opt.dataroot, opt.phase)
         self.data_list = make_dataset(opt.dataroot)
-        self.c = client( depth = opt.depth)
+        self.c = client( depth = opt.depth,batchsize = opt.batchSize)
         self.max_size = opt.max_dataset_size
         #print(self.data_list)
 
@@ -41,9 +41,9 @@ class VideoDataset(BaseDataset):
         #AB = np.load(AB_path)
         filename, AB = next(self.c)
         AB_path = filename
-        A = AB[:1]/127.5 -1.
+        A = AB[::2]/127.5 -1.
         #print("====== load A size ==== {0}".format(A.shape))
-        B = AB[1:]/127.5 -1.
+        B = AB[1::2]/127.5 -1.
         return {'A': A, 'B': B,
                 'A_paths': AB_path, 'B_paths': AB_path}
 

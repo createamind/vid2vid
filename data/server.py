@@ -132,18 +132,21 @@ def start_server(port = '5557' ,hwm =20,depth =4):
             except StopIteration:
                 data_path, gen = data_gen(random.choice(f_lst), skip = 1, length = depth, pre = depth)
 
-def client(host = 'localhost',hwm =20,depth =4,):
-    print(23333333,depth)
-    server_ports = range(int(5550 + 10*depth), int(5558 + 10*depth), 2)
+def client(host = 'localhost',hwm =20,depth =4,batchsize = 1):
+    server_ports = range(int(5550 + 10*depth), int(5558 + 10*depth))
     setup_server(depth = depth)
     ctx = SerializingContext()
 
     c = ctx.socket(zmq.PULL)
     c.set_hwm(hwm)
     [c.connect('tcp://{}:{}'.format(host,p)) for p in server_ports]
+    res = []
     while 1:
-        filename , A = c.recv_array_(copy = False)
+        filename , a = c.recv_array_(copy = False)
+        array = [ c.recv_array_(copy = False)[1]for i in range(batchsize) ]
         #print(filename)
+        A = np.concatenate(array,axis = 0)
+        #print('gen',A.shape)
         yield filename , A
 
 '''
@@ -156,7 +159,7 @@ f_lst = glob.glob('/data/dataset/depthdata/vkitti_1.3.1_rgb/**/**/')
 
 def setup_server(depth):
     # Now we can run a few servers
-    server_ports = range(int(5550 + depth*10) , int(5558 + depth*10), 2)
+    server_ports = range(int(5550 + depth*10) , int(5558 + depth*10))
     print("Server starts ...")
     for p in server_ports:
         Process(target = start_server, kwargs = {'port' :p,'depth':depth},).start()

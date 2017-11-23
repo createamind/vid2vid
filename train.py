@@ -6,7 +6,6 @@ import ntpath
 import numpy as np
 import skvideo.io
 
-
 output_video = False
 opt = TrainOptions().parse()
 data_loader = CreateDataLoader(opt)
@@ -120,7 +119,7 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
             model.save('latest')
 
 
-        if total_steps % 20010 == 0:
+        if total_steps % 30010 == 0:
             print('saving the 20010 model (epoch %d, total_steps %d)' %
                   (epoch, total_steps))
             model.save(total_steps)

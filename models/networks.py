@@ -383,22 +383,9 @@ class UnetSkipConnectionBlock(nn.Module):
 
     def forward(self, x):
         if self.outermost:
-            x_ = self.model(x)
-            # print('x size 233333333333', x.size(), 'x_ size', x_.size())
-            return x_
+            return self.model(x)
         else:
-            try:
-                x_ = self.model(x)
-            except Exception as e:
-                print('model error',e)
-                print('input size ', x.size(),)
-                raise ValueError
-            try :
-                return torch.cat([x, x_], 1)
-            except Exception as e:
-                print('cat error ',e)
-                print('x size', x.size(), 'x_ size',x_.size())
-                raise ValueError
+            return torch.cat([x, self.model(x)], 1)
 
 '''
     2dcnn Shape:

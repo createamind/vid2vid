@@ -75,7 +75,7 @@ class Pix2PixModel(BaseModel):
         self.input_A.resize_(input_A.size()).copy_(input_A)
         self.input_B.resize_(input_B.size()).copy_(input_B)
         # convert to cuda
-        if 0 and torch.cuda.is_available():
+        if torch.cuda.is_available():
             self.input_A = self.input_A.cuda()
             self.input_B = self.input_B.cuda()
 

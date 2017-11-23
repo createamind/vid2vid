@@ -65,7 +65,10 @@ def gen_frame(i, frames_lst, length, overlap):
     return v
 
 
-def video_data_gen(vid_path, length=7, skip=2, overlap=1):
+def video_data_gen(vid_path, opt):
+    skip = opt.skip
+    length = opt.depth
+    overlap = opt.overlap
     #if not os.path.exists(out_path):
         #os.mkdir(out_path)
 

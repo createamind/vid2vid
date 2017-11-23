@@ -27,12 +27,12 @@ class TrainOptions(BaseOptions):
         self.parser.add_argument('--lr_decay_iters', type=int, default=50, help='multiply by a gamma every lr_decay_iters iterations')
         self.parser.add_argument('--identity', type=float, default=0.5, help='use identity mapping. Setting identity other than 1 has an effect of scaling the weight of the identity mapping loss. For example, if the weight of the identity loss should be 10 times smaller than the weight of the reconstruction loss, please set optidentity = 0.1')
         ## add load data option
-        self.parser.add_argument('--load_video', type=int, default=1, help='load data = 1 | load image = 0')
-        self.parser.add_argument('--data_dir', type=str, default='/data/dataset/UCF/',
-                                 help='video or images data repository')
-        self.parser.add_argument('--depth', type=int, default=60, help='3D Video frames length')
+        self.parser.add_argument('--load_video', type=int, default=0, help='load video = 1 | load image = 0')
+        self.parser.add_argument('--data_dir', type=str, default='/data/dataset/depthdata/vkitti_1.3.1_rgb/**/**/',
+                                 help='video or images data repository, example: virtualkitti dataset = /data/dataset/depthdata/vkitti_1.3.1_rgb/**/**/ | babayCrawlling dataset: /data/dataset/UCF/v_BabyCrawling**.avi')
+        self.parser.add_argument('--depth', type=int, default=75, help='3D Video frames length')
         self.parser.add_argument('--skip', type=int, default=1, help='skip how many frames to catch data')
-        self.parser.add_argument('--overlap', type=int, default=0, help='how many frames B will have as same as A')
+        self.parser.add_argument('--overlap', type=int, default=75, help='how many frames B will have as same as A')
 
 
 

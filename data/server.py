@@ -16,7 +16,9 @@ from data.img_loder import data_gen, video_data_gen
 logger = logging.getLogger(__name__)
 
 opt = TrainOptions().parse()
-f_lst = glob.glob(opt.data_dir + 'v_BabyCrawling**.avi')
+## f_lst = glob.glob(opt.data_dir + 'v_BabyCrawling**.avi')
+f_lst = glob.glob(opt.data_dir)
+##f_lst = glob.glob('/data/dataset/depthdata/vkitti_1.3.1_rgb/**/**/')
 print("Total videos: {}".format(len(f_lst)))
 
 
@@ -105,7 +107,8 @@ def test():
     print("Okay" if (C == B).all() else "Failed")
 
 
-def start_server(port = '5557' ,hwm =20,depth =4):
+def start_server(port , opt ):
+    hwm = 20
     ctx = SerializingContext()
 
     s = ctx.socket(zmq.PUSH)
@@ -119,31 +122,36 @@ def start_server(port = '5557' ,hwm =20,depth =4):
 
     while 1:
         if opt.load_video == 1:
-            data_path, gen = video_data_gen(random.choice(f_lst), skip = 1, length = depth, overlap=0)
+            data_path, gen = video_data_gen(random.choice(f_lst), opt )
             #print(data_path, gen)
             try:
                 [s.send_array_(data.copy(order='C'), copy=False, filename=data_path) for data in gen]
             except StopIteration:
-                data_path, gen = video_data_gen(random.choice(f_lst), skip=1, length=depth, overlap=0)
+                data_path, gen = video_data_gen(random.choice(f_lst), opt)
         else:
-            gen = data_gen(random.choice(f_lst), skip = 1, length = depth, pre = depth)
+            data_path, gen = data_gen(random.choice(f_lst), skip = opt.skip, length = opt.depth, pre = opt.depth)
             try:
                 [s.send_array_(data.copy(order='C'), copy=False, filename=data_path) for data in gen]
             except StopIteration:
-                data_path, gen = data_gen(random.choice(f_lst), skip = 1, length = depth, pre = depth)
+                data_path, gen = data_gen(random.choice(f_lst), skip = opt.skip, length = opt.depth, pre = opt.depth)
 
-def client(host = 'localhost',hwm =20,depth =4,):
-    print(23333333,depth)
-    server_ports = range(int(5550 + 10*depth), int(5558 + 10*depth), 2)
-    setup_server(depth = depth)
+def client(opt = None):
+    hwm = 20
+    host = 'localhost'
+    server_ports = range(int(5550 + 10*opt.depth), int(5558 + 10*opt.depth))
+    setup_server(server_ports,opt)
     ctx = SerializingContext()
 
     c = ctx.socket(zmq.PULL)
     c.set_hwm(hwm)
     [c.connect('tcp://{}:{}'.format(host,p)) for p in server_ports]
+    res = []
     while 1:
-        filename , A = c.recv_array_(copy = False)
+        filename , a = c.recv_array_(copy = False)
+        array = [ c.recv_array_(copy = False)[1]for i in range(opt.batchSize) ]
         #print(filename)
+        A = np.concatenate(array,axis = 0)
+        #print('gen',A.shape)
         yield filename , A
 
 '''
@@ -154,12 +162,11 @@ f_lst = glob.glob('/data/dataset/depthdata/vkitti_1.3.1_rgb/**/**/')
 '''
 
 
-def setup_server(depth):
+def setup_server(server_ports, opt):
     # Now we can run a few servers
-    server_ports = range(int(5550 + depth*10) , int(5558 + depth*10), 2)
     print("Server starts ...")
     for p in server_ports:
-        Process(target = start_server, kwargs = {'port' :p,'depth':depth},).start()
+        Process(target = start_server, args = (p ,opt )).start()
 
     # Now we can connect a client to all these servers
     #Process(target = client, kwargs = {'ports' : server_ports}).start()

@@ -425,6 +425,7 @@ class NLayerDiscriminator(nn.Module):
         for n in range(1, n_layers):
             nf_mult_prev = nf_mult
             nf_mult = min(2**n, 8)
+            print("===================" +str(2**n))
             sequence += [
                 nn.Conv3d(ndf * nf_mult_prev, ndf * nf_mult,
                           kernel_size=kw, stride=(1,2,2), padding=padw, bias=use_bias),

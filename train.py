@@ -40,13 +40,14 @@ def save_videos(web_dir, visuals, vid_path, epoch):
     #print("vid_dir: {}".format(vid_dir))
     #print("name: {}".format(name))
 
-    A = visuals['real_A']
+    A = visuals['real_A'][:, :, :, :3]
+    print("="*20 + str(A.shape))
     last_A = np.tile(A[-1], (A.shape[0], 1, 1, 1))
     #print("A_last shape: {}".format(A[-1].shape))
     #print('last_A: {}'.format(last_A.shape))
-    B = visuals['real_B']
+    B = visuals['real_B'][:, :, :, :3]
     first_B  = np.tile(B[0], (A.shape[0], 1, 1, 1))
-    fake = visuals['fake_B']
+    fake = visuals['fake_B'][:, :, :, :3]
     first_fake = np.tile(fake[0], (A.shape[0], 1, 1, 1))
     black = np.ones_like(A)
     blackforA = np.concatenate((first_B, first_fake), axis=1)
@@ -89,6 +90,12 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
     epoch_iter = 0
 
     for i, data in enumerate(dataset):
+
+        #AB_path = "./data/data/"
+        #trial = np.ones((opt.batchSize, opt.input_nc, opt.depth, opt.fineSize, opt.fineSize))
+        #data = {'A': trial, 'B': trial, 'A_paths': AB_path, 'B_paths': AB_path}
+
+        #data = dict(data)
 
         #print(data.shape())
 

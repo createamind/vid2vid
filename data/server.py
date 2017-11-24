@@ -129,11 +129,11 @@ def start_server(port , opt ):
             except StopIteration:
                 data_path, gen = video_data_gen(random.choice(f_lst), opt)
         else:
-            data_path, gen = data_gen(random.choice(f_lst), skip = opt.skip, length = opt.depth, pre = opt.depth)
+            data_path, gen = data_gen(random.choice(f_lst), opt)
             try:
                 [s.send_array_(data.copy(order='C'), copy=False, filename=data_path) for data in gen]
             except StopIteration:
-                data_path, gen = data_gen(random.choice(f_lst), skip = opt.skip, length = opt.depth, pre = opt.depth)
+                data_path, gen = data_gen(random.choice(f_lst), opt)
 
 def client(opt = None):
     hwm = 20

@@ -13,7 +13,7 @@ class BaseOptions():
         self.parser.add_argument('--dataroot', default= '/data/', help='path to images (should have subfolders trainA, trainB, valA, valB, etc)')
 
         #self.parser.add_argument('--dataroot', required=True,  help='path to images (should have subfolders trainA, trainB, valA, valB, etc)')
-        self.parser.add_argument('--batchSize', type=int, default=16, help='input batch size')
+        self.parser.add_argument('--batchSize', type=int, default=1, help='input batch size')
         self.parser.add_argument('--loadSize', type=int, default=286, help='scale images to this size')
         self.parser.add_argument('--fineSize', type=int, default=256, help='then crop to this size')
         ## add 3D depth

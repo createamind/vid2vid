@@ -41,7 +41,7 @@ def save_videos(web_dir, visuals, vid_path, epoch):
     #print("name: {}".format(name))
 
     A = visuals['real_A'][:, :, :, :3]
-    print("="*20 + str(A.shape))
+    #print("="*20 + str(A.shape))
     last_A = np.tile(A[-1], (A.shape[0], 1, 1, 1))
     #print("A_last shape: {}".format(A[-1].shape))
     #print('last_A: {}'.format(last_A.shape))
@@ -71,6 +71,40 @@ def save_videos(web_dir, visuals, vid_path, epoch):
                       inputdict={'-r': '12'},
                       outputdict={'-r': '12'})
     print('save video at ', save_path + save_name)
+
+
+    # Depth Video
+    dA = visuals['real_A'][:, :, :, 3]
+    print("=" * 20 + str(dA.shape))
+    dlast_A = np.tile(dA[-1], (dA.shape[0], 1, 1))
+    # print("A_last shape: {}".format(A[-1].shape))
+    # print('last_A: {}'.format(last_A.shape))
+    dB = visuals['real_B'][:, :, :, 3]
+    dfirst_B = np.tile(dB[0], (dA.shape[0], 1, 1))
+    dfake = visuals['fake_B'][:, :, :, 3]
+    dfirst_fake = np.tile(dfake[0], (dA.shape[0], 1, 1))
+    dblack = np.ones_like(dlast_A)
+    dblackforA = np.concatenate((dfirst_B, dfirst_fake), axis=1)
+    print("=" * 20 + "dlastA" + str(dlast_A.shape))
+    print("=" * 20 + "dblack" + str(dblack.shape))
+    dblackforBC = np.concatenate((dlast_A, dblack), axis=1)
+
+    dvid_A = np.concatenate((dA, dblack), axis=1)
+    dvid_A2 = np.concatenate((dvid_A, dblackforA), axis=2)
+    dvid_BC = np.concatenate((dB, dfake), axis=1)
+    dvid_BC2 = np.concatenate((dblackforBC, dvid_BC), axis=2)
+    dvid_numpy = np.concatenate((dvid_A2, dvid_BC2), axis=0)
+    # print("output_img_shape: {}".format(vid_numpy.shape))
+
+    # vid_numpy = np.concatenate((visuals['real_A'], visuals['real_B'], visuals['fake_B']), axis=2)
+    # print(vid_numpy.shape)
+
+    dsave_name = name + '_depth' + '.mp4'
+
+    skvideo.io.vwrite(save_path + dsave_name, dvid_numpy,
+                      inputdict={'-r': '12'},
+                      outputdict={'-r': '12'})
+    print('save depth video at ', save_path + dsave_name)
 
     while output_video:
 

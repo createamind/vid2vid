@@ -50,10 +50,11 @@ def save_videos(web_dir, visuals, vid_path, epoch):
     fake = visuals['fake_B'][:, :, :, :3]
     first_fake = np.tile(fake[0], (A.shape[0], 1, 1, 1))
     black = np.ones_like(A)
+    last_fake= np.tile(fake[-1], (A.shape[0], 1, 1, 1))
     blackforA = np.concatenate((first_B, first_fake), axis=1)
-    blackforBC = np.concatenate((last_A, black), axis=1)
+    blackforBC = np.concatenate((last_A, last_fake), axis=1)
 
-    vid_A = np.concatenate((A, black), axis=1)
+    vid_A = np.concatenate((A, fake), axis=1)
     vid_A2 = np.concatenate((vid_A, blackforA), axis=2)
     vid_BC = np.concatenate((B, fake), axis=1)
     vid_BC2 = np.concatenate((blackforBC, vid_BC), axis=2)
@@ -61,7 +62,7 @@ def save_videos(web_dir, visuals, vid_path, epoch):
     #print("output_img_shape: {}".format(vid_numpy.shape))
 
     #vid_numpy = np.concatenate((visuals['real_A'], visuals['real_B'], visuals['fake_B']), axis=2)
-    #print(vid_numpy.shape)
+    # print(vid_numpy.shape)
     save_path = os.path.join(vid_dir, str(epoch)) + '/'
     if not os.path.exists(save_path):
         os.makedirs(save_path)
@@ -74,23 +75,30 @@ def save_videos(web_dir, visuals, vid_path, epoch):
 
 
     # Depth Video
-    dA = visuals['real_A'][:, :, :, 3]
+    print("visuals",visuals['real_A'].shape)
+    dA = visuals['real_B'][:, :, :, 3]
+    dB = visuals['real_B'][:, :, :, 4]
+    dfake = visuals['fake_B'][:, :, :, 4]
+    dfake_ = visuals['fake_B'][:, :, :, 3]
+
+
     print("=" * 20 + str(dA.shape))
-    dlast_A = np.tile(dA[-1], (dA.shape[0], 1, 1))
+    dlast_A = np.tile(dA[-1], (dA.shape[0], 1, 1)) #last frame
+    dlast_A_ = np.tile(dfake_[-1], (dA.shape[0], 1, 1))  # last frame
     # print("A_last shape: {}".format(A[-1].shape))
     # print('last_A: {}'.format(last_A.shape))
-    dB = visuals['real_B'][:, :, :, 3]
+
     dfirst_B = np.tile(dB[0], (dA.shape[0], 1, 1))
-    dfake = visuals['fake_B'][:, :, :, 3]
+
     dfirst_fake = np.tile(dfake[0], (dA.shape[0], 1, 1))
     dblack = np.ones_like(dlast_A)
-    dblackforA = np.concatenate((dfirst_B, dfirst_fake), axis=1)
+    dblackforA = np.concatenate((dfirst_B, dfirst_fake), axis=1) # first frame
     print("=" * 20 + "dlastA" + str(dlast_A.shape))
     print("=" * 20 + "dblack" + str(dblack.shape))
-    dblackforBC = np.concatenate((dlast_A, dblack), axis=1)
+    dblackforBC = np.concatenate((dlast_A, dlast_A_), axis=1) ##replace dblack with dlast_A_
 
-    dvid_A = np.concatenate((dA, dblack), axis=1)
-    dvid_A2 = np.concatenate((dvid_A, dblackforA), axis=2)
+    dvid_A = np.concatenate((dA, dfake_), axis=1) #replace dblack with dfake_
+    dvid_A2 = np.concatenate((dvid_A, dblackforA), axis=2) # time within A
     dvid_BC = np.concatenate((dB, dfake), axis=1)
     dvid_BC2 = np.concatenate((dblackforBC, dvid_BC), axis=2)
     dvid_numpy = np.concatenate((dvid_A2, dvid_BC2), axis=0)
@@ -124,10 +132,13 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
     epoch_iter = 0
 
     for i, data in enumerate(dataset):
+        if 0:
 
-        #AB_path = "./data/data/"
-        #trial = np.ones((opt.batchSize, opt.input_nc, opt.depth, opt.fineSize, opt.fineSize))
-        #data = {'A': trial, 'B': trial, 'A_paths': AB_path, 'B_paths': AB_path}
+
+            AB_path = "./data/data/"
+            trial_A = np.ones((opt.batchSize, opt.input_nc, opt.depth, opt.fineSize, opt.fineSize))
+            trial_B = np.ones((opt.batchSize, opt.output_nc, opt.depth, opt.fineSize, opt.fineSize))
+            data = {'A': trial_A, 'B': trial_B, 'A_paths': AB_path, 'B_paths': AB_path}
 
         #data = dict(data)
 

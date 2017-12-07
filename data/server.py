@@ -65,12 +65,14 @@ class imgsocket(SerializingSocket):
     def send_array_(self, A, flags = 0, copy = True, track = False, filename = None):
         #print('ffff',filename)
         self.send_json(filename , flags | zmq.SNDMORE)
-        self.send_array( A, flags = flags, copy = copy, track = track)
+
+        self.send_array( A.copy(order='C'), flags = flags, copy = copy, track = track)
 
     def recv_array_(self, flags = 0, copy = True, track = False):
 
         filename = self.recv_json(flags = flags)
-        return filename , self.recv_array(flags = flags, copy = copy, track = track)
+        data = self.recv_array(flags = flags, copy = copy, track = track)
+        return filename , data
 
 
 class SerializingContext(zmq.Context):
@@ -125,13 +127,13 @@ def start_server(port , opt ):
             data_path, gen = video_data_gen(random.choice(f_lst), opt )
             #print(data_path, gen)
             try:
-                [s.send_array_(data.copy(order='C'), copy=False, filename=data_path) for data in gen]
+                [s.send_array_(data, copy=False, filename=data_path) for data in gen]
             except StopIteration:
                 data_path, gen = video_data_gen(random.choice(f_lst), opt)
         else:
             data_path, gen = data_gen(random.choice(f_lst), opt)
             try:
-                [s.send_array_(data.copy(order='C'), copy=False, filename=data_path) for data in gen]
+                [s.send_array_(data, copy=False, filename=data_path) for data in gen]
             except StopIteration:
                 data_path, gen = data_gen(random.choice(f_lst), opt)
 
@@ -148,10 +150,12 @@ def client(opt = None):
     res = []
     while 1:
         filename , a = c.recv_array_(copy = False)
-        array = [ c.recv_array_(copy = False)[1]for i in range(opt.batchSize) ]
+        array = [ c.recv_array_(copy = False)[1] for i in range(opt.batchSize) ]
+
         #print(filename)
+
         A = np.concatenate(array,axis = 0)
-        #print('gen',A.shape)
+
         yield filename , A
 
 '''

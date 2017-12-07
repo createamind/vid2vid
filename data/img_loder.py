@@ -27,16 +27,39 @@ read_gray =  lambda x: cv2.resize(cv2.imread(x.replace("_rgb","_depthgt") , 0)[:
 
 def gen_np(c,in_chanel,out_chanel):
     #     print(c)
-    img1 = [read_(i) for i in c[0]]
-    img2 = [read_(i) for i in c[1]]
-    if in_chanel == 4:
-        depth1 = [read_gray(i).reshape(256,256,1) for i in c[0]]
-        depth2 = [read_gray(i).reshape(256,256,1) for i in c[1]]
-        img1 = [ np.concatenate([i,j],axis = -1 ) for i,j in zip(img1 ,depth1 )]
-        img2 = [np.concatenate([i, j], axis = -1) for i, j in zip(img2, depth2)]
+    if in_chanel == 3:
+        img1 = [read_(i) for i in c[0]]
+        img1 = np.asarray([img1])
+        img1 = np.transpose(img1, (0, 4, 1, 2,3))
 
-    v = np.asarray([img1, img2])
-    v = np.transpose(v, (0, 4, 1, 2, 3))
+    if in_chanel == 4:
+        img1 = [read_(i) for i in c[0]]
+        depth1 = [read_gray(i).reshape(256,256,1) for i in c[0]]
+
+        img1 = [ np.concatenate([i,j],axis = -1 ) for i,j in zip(img1 ,depth1 )]
+        img1 = np.asarray([img1])
+        img1 = np.transpose(img1, (0, 4, 1, 2,3))
+
+    if out_chanel == 1:
+        img2 = [read_gray(i).reshape(256, 256, 1) for i in c[1]]
+    if out_chanel == 3:
+        img2 = [read_(i) for i in c[1]]
+
+    if out_chanel == 4:
+        depth2 = [read_gray(i).reshape(256, 256, 1) for i in c[1]]
+        img2 = [np.concatenate([i, j], axis = -1) for i, j in zip(img2, depth2)]
+    if out_chanel == 5:
+        img2 = [read_(i) for i in c[1]]
+        depth1 = [read_gray(i).reshape(256, 256, 1) for i in c[0]]
+        depth2 = [read_gray(i).reshape(256, 256, 1) for i in c[1]]
+        img2 = [np.concatenate([i, j,k], axis = -1) for i, j ,k in zip(img2, depth1, depth2)]
+        img2= np.asarray([img2])
+        img2=np.transpose(img2, (0, 4, 1, 2,3))
+
+
+
+    v = np.concatenate([img1,img2],axis = 1)
+
     #     v.transpose(0,4,1,2,3)
     return v
 

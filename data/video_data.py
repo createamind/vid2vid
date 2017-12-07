@@ -19,6 +19,7 @@ def make_dataset(data_path):
 class VideoDataset(BaseDataset):
 
     def initialize(self, opt):
+        self.opt = opt
         #opt = namedtuple('option', ['dataroot', 'phase'])
         #opt.dataroot = '.'
         #opt.phase = 'data'
@@ -41,9 +42,9 @@ class VideoDataset(BaseDataset):
         #AB = np.load(AB_path)
         filename, AB = next(self.c)
         AB_path = filename
-        A = AB[::2]/127.5 -1.
+        A = AB[:,0:self.opt.input_nc]/127.5 -1.
         #print("====== load A size ==== {0}".format(A.shape))
-        B = AB[1::2]/127.5 -1.
+        B = AB[:,self.opt.input_nc:]/127.5 -1.
         return {'A': A, 'B': B,
                 'A_paths': AB_path, 'B_paths': AB_path}
 

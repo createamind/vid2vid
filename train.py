@@ -75,14 +75,14 @@ def save_videos(web_dir, visuals, vid_path, epoch):
 
 
     # Depth Video
-    print("visuals",visuals['real_A'].shape)
+    #print("visuals",visuals['real_A'].shape)
     dA = visuals['real_B'][:, :, :, 3]
     dB = visuals['real_B'][:, :, :, 4]
     dfake = visuals['fake_B'][:, :, :, 4]
     dfake_ = visuals['fake_B'][:, :, :, 3]
 
 
-    print("=" * 20 + str(dA.shape))
+    #print("=" * 20 + str(dA.shape))
     dlast_A = np.tile(dA[-1], (dA.shape[0], 1, 1)) #last frame
     dlast_A_ = np.tile(dfake_[-1], (dA.shape[0], 1, 1))  # last frame
     # print("A_last shape: {}".format(A[-1].shape))
@@ -93,8 +93,8 @@ def save_videos(web_dir, visuals, vid_path, epoch):
     dfirst_fake = np.tile(dfake[0], (dA.shape[0], 1, 1))
     dblack = np.ones_like(dlast_A)
     dblackforA = np.concatenate((dfirst_B, dfirst_fake), axis=1) # first frame
-    print("=" * 20 + "dlastA" + str(dlast_A.shape))
-    print("=" * 20 + "dblack" + str(dblack.shape))
+    #print("=" * 20 + "dlastA" + str(dlast_A.shape))
+    #print("=" * 20 + "dblack" + str(dblack.shape))
     dblackforBC = np.concatenate((dlast_A, dlast_A_), axis=1) ##replace dblack with dlast_A_
 
     dvid_A = np.concatenate((dA, dfake_), axis=1) #replace dblack with dfake_

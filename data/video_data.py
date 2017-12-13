@@ -75,7 +75,7 @@ class VideoDataset(BaseDataset):
         B = AB[:,self.opt.input_nc:]/127.5 -1.
         # print("====== load A size ==== {0}".format(A.shape))
         # print("====== load B size ==== {0}".format(B.shape))
-        return {'A': A, 'B': B,"action":sensor_data.action,
+        return {'A': A, 'B': B,"speedX":sensor_data.speedX,
                 'A_paths': AB_path, 'B_paths': AB_path}
 
     def __len__(self):

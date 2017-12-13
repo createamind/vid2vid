@@ -16,21 +16,23 @@ class sensor_model(Pix2PixModel):
         return "sensor_model"
 
     def initialize(self, opt):
+        if "speedX" in opt.sensor_types:
+            self.speedD = networks.Action_D(opt.depth)
 
         Pix2PixModel.initialize(self, opt)
-        self.action = self.Tensor(opt.batchSize, opt.depth, 2)
+        self.speedX = self.Tensor(opt.batchSize, opt.depth)
 
 
     def set_input(self, input):
         Pix2PixModel.set_input(self, input)
-        action = torch.from_numpy(input["action"])
-        self.action.resize_(action.size()).copy_(action)
+        speedX = torch.from_numpy(input["speedX"])
+        self.speedX.resize_(speedX.size()).copy_(speedX)
         if self.gpu_ids and torch.cuda.is_available():
-            self.action = self.action.cuda()
+            self.speedX = self.speedX.cuda()
     def forward(self):
         self.real_A = Variable(self.input_A)
-        self.fake_B ,code= self.netG(self.real_A)
-        print("code",code.size())
+        self.fake_B ,self.speedX_pred= self.netG(self.real_A)
+        print("speedX_pred",self.speedX_pred.size())
 
         self.real_B = Variable(self.input_B)
 
@@ -43,12 +45,19 @@ class sensor_model(Pix2PixModel):
         fake_AB = torch.cat((self.real_A, self.fake_B), 1).data
         fake_AB_ = Variable(fake_AB)
         pred_fake = self.netD(fake_AB_.detach())
-        self.loss_D_fake = self.criterionGAN(pred_fake, False)
+        speed_fake = self.speedD(self.speedX_pred.detach())
+        self.loss_D_fake = self.criterionGAN(pred_fake, False)+ \
+                           self.criterionGAN(speed_fake, False) #fake speed
+
+
 
         # Real
         real_AB = torch.cat((self.real_A, self.real_B), 1)
         pred_real = self.netD(real_AB)
-        self.loss_D_real = self.criterionGAN(pred_real, True)
+        self.loss_D_real = self.criterionGAN(pred_real, True) + \
+                           self.criterionGAN(self.speedX, True)
+        #real speed
+
 
         # Combined loss
         self.loss_D = (self.loss_D_fake + self.loss_D_real) * 0.5
@@ -59,7 +68,10 @@ class sensor_model(Pix2PixModel):
         # First, G(A) should fake the discriminator
         fake_AB = torch.cat((self.real_A, self.fake_B), 1)
         pred_fake = self.netD(fake_AB)
-        self.loss_G_GAN = self.criterionGAN(pred_fake, True)
+        speed_fake = self.speedD(self.speedX_pred)
+        self.loss_G_GAN = self.criterionGAN(pred_fake, True) + \
+                          self.criterionGAN(speed_fake, True)
+
 
         # Second, G(A) = B
         self.loss_G_L1 = self.criterionL1(self.fake_B, self.real_B) * self.opt.lambda_A

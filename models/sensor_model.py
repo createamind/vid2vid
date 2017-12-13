@@ -16,6 +16,7 @@ class sensor_model(Pix2PixModel):
         return "sensor_model"
 
     def initialize(self, opt):
+
         Pix2PixModel.initialize(self, opt)
         self.action = self.Tensor(opt.batchSize, opt.depth, 2)
 
@@ -24,7 +25,7 @@ class sensor_model(Pix2PixModel):
         Pix2PixModel.set_input(self, input)
         action = torch.from_numpy(input["action"])
         self.action.resize_(action.size()).copy_(action)
-        if torch.cuda.is_available():
+        if self.gpu_ids and torch.cuda.is_available():
             self.action = self.action.cuda()
     def forward(self):
         self.real_A = Variable(self.input_A)
@@ -37,7 +38,8 @@ class sensor_model(Pix2PixModel):
         # Fake
         # stop backprop to the generator by detaching fake_B
         #fake_AB = self.fake_AB_pool.query(torch.cat((self.real_A, self.fake_B), 1).data)
-        print("A   B"*5,self.real_A.size(),self.fake_B.size())
+        print(" A {}  B {}".format(self.real_A.size(),self.fake_B.size()))
+
         fake_AB = torch.cat((self.real_A, self.fake_B), 1).data
         fake_AB_ = Variable(fake_AB)
         pred_fake = self.netD(fake_AB_.detach())

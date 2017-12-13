@@ -118,7 +118,7 @@ def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropo
     elif which_model_netG == 'unet_256':
         netG = UnetGenerator(input_nc, output_nc, 8, ngf, norm_layer=norm_layer, use_dropout=use_dropout, gpu_ids=gpu_ids)
     elif which_model_netG == 'SensorGenerator':
-        netG = SensorGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=9, gpu_ids=gpu_ids)
+        netG = SensorGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=1, gpu_ids=gpu_ids)
     else:
         raise NotImplementedError('Generator model name [%s] is not recognized' % which_model_netG)
     if len(gpu_ids) > 0:
@@ -523,14 +523,10 @@ class SensorGenerator(nn.Module):
         mult = 2 ** n_downsampling
         for i in range(n_blocks):
             model += [ResnetBlock_3d(ngf * mult, padding_type = padding_type, norm_layer = norm_layer,
-                                  use_dropout = use_dropout, use_bias = use_bias)]
+                                  use_dropout = use_dropout, use_bias = use_bias),
+                      ]
         code = model[:]
-        code += [nn.ConvTranspose3d(ngf * mult, int(3),
-                                         kernel_size = [3,3,3], stride = (1,2,2),
-                                         padding = (1,1,1),
-                                         bias = use_bias),
-                      norm_layer(3),
-                      nn.ReLU(True)]
+
 
         model = []
 
@@ -538,7 +534,7 @@ class SensorGenerator(nn.Module):
             mult = 2 ** (n_downsampling - i)
 
 
-            model += [nn.ConvTranspose3d(ngf * mult, int(ngf * mult / 2),
+            model += [nn.ConvTranspose3d(ngf * mult, int(ngf * mult /2),
                                          kernel_size = [3,3,3], stride = (1,2,2),
                                          padding = (1,1,1),
                                          bias = use_bias),
@@ -553,55 +549,86 @@ class SensorGenerator(nn.Module):
 
 
         self.code = nn.Sequential(*code)
-    def build_pre(self,code_size,input_size):
+    def build_pre(self,code_size,out_size):
         if  getattr(self,"set_pre",None):
            return
-        out_size = input_size.size()[2]
-        in_size = code_size.size()[1:]
-        def mul():
-            res = 1
-            for i in in_size:
-                res*=i
-            return res
-        size = mul()
+        print("set up action prediction net")
+
+
+
         pre = []
-        pre +=[nn.ConvTranspose3d(256, int(ngf * mult / 2),
-                                         kernel_size = [3,3,3], stride = (1,2,2),
-                                         padding = (1,1,1)),
-            nn.Linear(size, 1024),
-               nn.Linear(1024, 512),
-               nn.Linear(512, 256),
-               nn.Linear(256, out_size),
+        pre +=[
+            nn.Linear(code_size, out_size),
+               # nn.Linear(1024, 512),
+               # nn.Linear(512, 256),
+               # nn.Linear(256, out_size),
                ]
-        print("in size {} ,out size {}".format(in_size,out_size))
+
         self.pre = pre
 
         self.set_pre = True
-    @property
-    def pre_out(self):
-        def f (x):
 
-            for l in self.pre:
-                print(l)
-                x = F.relu(l(x))
-        return f
+    def pre_out(self,x):
+
+
+
+        for l in self.pre:
+            print(l)
+            x = F.relu(l(x))
+        return x
 
 
 
 
     def forward(self, input):
         if  self.gpu_ids and isinstance(input.data, torch.cuda.FloatTensor):
-
+            out_size = input.size()[2]
             code = self.code(input)
-            self.build_pre(code,input)
-            self.pre_out(code)
+            def mul(code):
+                res = 1
+                for i in code.size()[1:]:
+                    res *= i
+                return res
+            code_size = mul(code)
+
+            self.build_pre(code_size, out_size)
 
 
-            return nn.parallel.data_parallel(self.model, code, self.gpu_ids),nn.parallel.data_parallel(self.pre_out, code, self.gpu_ids)
+
+
+
+            return nn.parallel.data_parallel(self.model, code, self.gpu_ids),nn.parallel.data_parallel(self.pre_out, code.view(-1, code_size), self.gpu_ids)
         else:
+            out_size = input.size()[2]
             code = self.code(input)
-            self.build_pre(code, input)
-            self.build_pre(code, input)
+            def mul(code):
+                res = 1
+                for i in code.size()[1:]:
+                    res *= i
+                return res
+            code_size = mul(code)
 
-            return self.model(code),self.pre_out(code)
+            self.build_pre(code_size, out_size)
 
+
+
+
+            a =self.model(code)
+            code = code.view(-1, code_size)
+            b = self.pre_out(code)
+
+            return  a , b
+
+class Action_D(nn.Module):
+    def __init__(self,depth):
+        super(Action_D, self).__init__()
+
+
+        self.fc1 = nn.Linear(depth, 1)
+
+
+    def forward(self, x):
+
+        x = F.relu(self.fc1(x))
+
+        return x

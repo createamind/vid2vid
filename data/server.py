@@ -148,7 +148,7 @@ def start_server(port , opt ):
 def client(opt = None):
     hwm = 20
     host = 'localhost'
-    server_ports = range(int(5550 + 10*opt.depth), int(5558 + 10*opt.depth))
+    server_ports = range(int(5550 + 0*opt.depth), int(5550 + 1*opt.depth))
     setup_server(server_ports,opt)
     ctx = SerializingContext()
 

@@ -76,7 +76,7 @@ def gen_np(c,in_chanel,out_chanel,opt):
 
     #     v.transpose(0,4,1,2,3)
     if  opt.sensor_types :
-        return  v, sensor_1
+        return  v, sensor_2
     else: return v
 
 

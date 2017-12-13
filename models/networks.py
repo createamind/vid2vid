@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn import init
 import functools
+import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.optim import lr_scheduler
 import numpy as np
@@ -116,6 +117,8 @@ def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropo
         netG = UnetGenerator(input_nc, output_nc, 7, ngf, norm_layer=norm_layer, use_dropout=use_dropout, gpu_ids=gpu_ids)
     elif which_model_netG == 'unet_256':
         netG = UnetGenerator(input_nc, output_nc, 8, ngf, norm_layer=norm_layer, use_dropout=use_dropout, gpu_ids=gpu_ids)
+    elif which_model_netG == 'SensorGenerator':
+        netG = SensorGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=9, gpu_ids=gpu_ids)
     else:
         raise NotImplementedError('Generator model name [%s] is not recognized' % which_model_netG)
     if len(gpu_ids) > 0:
@@ -216,9 +219,6 @@ class ResnetGenerator(nn.Module):
         else:
             use_bias = norm_layer == nn.InstanceNorm2d
 
-        kw = [3,4,4]
-        s = (1,2,2)
-
         model = [nn.ReflectionPad2d(3),
                  nn.Conv2d(input_nc, ngf, kernel_size=7, padding=0,
                            bias=use_bias),
@@ -236,7 +236,6 @@ class ResnetGenerator(nn.Module):
         mult = 2**n_downsampling
         for i in range(n_blocks):
             model += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout, use_bias=use_bias)]
-
         for i in range(n_downsampling):
             mult = 2**(n_downsampling - i)
             model += [nn.ConvTranspose2d(ngf * mult, int(ngf * mult / 2),
@@ -457,3 +456,152 @@ class NLayerDiscriminator(nn.Module):
             return nn.parallel.data_parallel(self.model, input, self.gpu_ids)
         else:
             return self.model(input)
+
+# Define a resnet block
+class ResnetBlock_3d(nn.Module):
+    def __init__(self, dim, padding_type, norm_layer, use_dropout, use_bias):
+        super(ResnetBlock_3d, self).__init__()
+        self.conv_block = self.build_conv_block(dim, padding_type, norm_layer, use_dropout, use_bias)
+
+    def build_conv_block(self, dim, padding_type, norm_layer, use_dropout, use_bias):
+        conv_block = []
+        p = 1
+        kw = [3, 3, 3]
+        s = (1, 1, 1)
+
+
+        conv_block += [nn.Conv3d(dim, dim, kernel_size=kw, padding=p, bias=use_bias),
+                       norm_layer(dim),
+                       nn.ReLU(True)]
+        if use_dropout:
+            conv_block += [nn.Dropout(0.5)]
+
+
+        conv_block += [nn.Conv3d(dim, dim, kernel_size=kw, padding=p, bias=use_bias),
+                       norm_layer(dim)]
+
+        return nn.Sequential(*conv_block)
+
+    def forward(self, x):
+        try :
+            out = x + self.conv_block(x)
+        except :
+            print("xxxxx", x.size(), "conv ", self.conv_block(x).size())
+        return out
+
+class SensorGenerator(nn.Module):
+    def __init__(self, input_nc, output_nc, ngf = 64, norm_layer = nn.BatchNorm2d, use_dropout = False,
+                 n_blocks = 6, gpu_ids = [], padding_type = 'reflect'):
+        assert (n_blocks >= 0)
+        super(SensorGenerator, self).__init__()
+        self.input_nc = input_nc
+        self.output_nc = output_nc
+        self.ngf = ngf
+        self.gpu_ids = gpu_ids
+        if type(norm_layer) == functools.partial:
+            use_bias = norm_layer.func == nn.InstanceNorm3d
+        else:
+            use_bias = norm_layer == nn.InstanceNorm3d
+
+        kw = [3, 4, 4]
+        s = (1, 2, 2)
+
+        model = [nn.Conv3d(input_nc, ngf, kernel_size = [3, 7, 7], padding = (1,3,3),
+                           bias = use_bias),
+
+                 norm_layer(ngf),
+                 nn.ReLU(True)]
+
+        n_downsampling = 2
+        for i in range(n_downsampling):
+            mult = 2 ** i
+            model += [nn.Conv3d(ngf * mult, ngf * mult * 2, kernel_size = [3,3,3],
+                                stride = (1,2,2), padding = (1,1,1), bias = use_bias),
+                      norm_layer(ngf * mult * 2),
+                      nn.ReLU(True)]
+
+        mult = 2 ** n_downsampling
+        for i in range(n_blocks):
+            model += [ResnetBlock_3d(ngf * mult, padding_type = padding_type, norm_layer = norm_layer,
+                                  use_dropout = use_dropout, use_bias = use_bias)]
+        code = model[:]
+        code += [nn.ConvTranspose3d(ngf * mult, int(3),
+                                         kernel_size = [3,3,3], stride = (1,2,2),
+                                         padding = (1,1,1),
+                                         bias = use_bias),
+                      norm_layer(3),
+                      nn.ReLU(True)]
+
+        model = []
+
+        for i in range(n_downsampling):
+            mult = 2 ** (n_downsampling - i)
+
+
+            model += [nn.ConvTranspose3d(ngf * mult, int(ngf * mult / 2),
+                                         kernel_size = [3,3,3], stride = (1,2,2),
+                                         padding = (1,1,1),
+                                         bias = use_bias),
+                      norm_layer(int(ngf * mult / 2)),
+                      nn.ReLU(True)]
+        model += [nn.Conv3d(ngf, output_nc, kernel_size = [3,7,7], padding = (1,3,3) ),
+                  nn.Conv3d(output_nc, output_nc, kernel_size = [3, 6, 6], padding = (1, 4, 4),stride = (1,1,1),),]
+        model += [nn.Tanh()]
+
+        self.model = nn.Sequential(*model)
+
+
+
+        self.code = nn.Sequential(*code)
+    def build_pre(self,code_size,input_size):
+        if  getattr(self,"set_pre",None):
+           return
+        out_size = input_size.size()[2]
+        in_size = code_size.size()[1:]
+        def mul():
+            res = 1
+            for i in in_size:
+                res*=i
+            return res
+        size = mul()
+        pre = []
+        pre +=[nn.ConvTranspose3d(256, int(ngf * mult / 2),
+                                         kernel_size = [3,3,3], stride = (1,2,2),
+                                         padding = (1,1,1)),
+            nn.Linear(size, 1024),
+               nn.Linear(1024, 512),
+               nn.Linear(512, 256),
+               nn.Linear(256, out_size),
+               ]
+        print("in size {} ,out size {}".format(in_size,out_size))
+        self.pre = pre
+
+        self.set_pre = True
+    @property
+    def pre_out(self):
+        def f (x):
+
+            for l in self.pre:
+                print(l)
+                x = F.relu(l(x))
+        return f
+
+
+
+
+    def forward(self, input):
+        if  self.gpu_ids and isinstance(input.data, torch.cuda.FloatTensor):
+
+            code = self.code(input)
+            self.build_pre(code,input)
+            self.pre_out(code)
+
+
+            return nn.parallel.data_parallel(self.model, code, self.gpu_ids),nn.parallel.data_parallel(self.pre_out, code, self.gpu_ids)
+        else:
+            code = self.code(input)
+            self.build_pre(code, input)
+            self.build_pre(code, input)
+
+            return self.model(code),self.pre_out(code)
+

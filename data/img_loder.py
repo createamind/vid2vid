@@ -1,4 +1,4 @@
-import glob
+import glob ,os
 import cv2
 import numpy as np
 import skvideo.io
@@ -22,15 +22,24 @@ def get_pair(img_lst, pre, skip, length):
     return A, B
 
 
-read_ = lambda x: cv2.resize(cv2.imread(x)[:, int(1242 / 2 - 375 / 2):int(1242 / 2 + 375 / 2), ::-1], (256, 256))
+read_ = lambda x: cv2.resize(cv2.imread(x)[:, int(1242 / 2 - 375 / 2):int(1242 / 2 + 375 / 2), ::-1], (256, 256)) if cv2.imread(x).shape[0] > 256 else cv2.imread(x)
 read_gray =  lambda x: cv2.resize(cv2.imread(x.replace("_rgb","_depthgt") , 0)[:, int(1242 / 2 - 375 / 2):int(1242 / 2 + 375 / 2)], (256, 256))
+read_sensor = lambda x : np.load(x.replace(".jpg",".npy"))
 
-def gen_np(c,in_chanel,out_chanel):
-    #     print(c)
+def gen_np(c,in_chanel,out_chanel,opt):
+    if opt.sensor_types:
+        sensor_1 = np.asarray([[read_sensor(i) for i in c[0]]])
+        sensor_2 = np.asarray([[read_sensor(i) for i in c[1]]])
+
     if in_chanel == 3:
         img1 = [read_(i) for i in c[0]]
         img1 = np.asarray([img1])
-        img1 = np.transpose(img1, (0, 4, 1, 2,3))
+        img1 = np.transpose(img1, (0, 4, 1, 2, 3))
+        # print("img1", img1.shape)
+
+            # print(s.shape,img1.shape)
+
+
 
     if in_chanel == 4:
         img1 = [read_(i) for i in c[0]]
@@ -44,6 +53,8 @@ def gen_np(c,in_chanel,out_chanel):
         img2 = [read_gray(i).reshape(256, 256, 1) for i in c[1]]
     if out_chanel == 3:
         img2 = [read_(i) for i in c[1]]
+        img2 = np.asarray([img2])
+        img2 = np.transpose(img2, (0, 4, 1, 2, 3))
 
     if out_chanel == 4:
         depth2 = [read_gray(i).reshape(256, 256, 1) for i in c[1]]
@@ -52,36 +63,44 @@ def gen_np(c,in_chanel,out_chanel):
         img2 = [read_(i) for i in c[1]]
         depth1 = [read_gray(i).reshape(256, 256, 1) for i in c[0]]
         depth2 = [read_gray(i).reshape(256, 256, 1) for i in c[1]]
-        img2 = [np.concatenate([i, j,k], axis = -1) for i, j ,k in zip(img2, depth1, depth2)]
+        img2 = [np.concatenate([i, j, k], axis = -1) for i, j ,k in zip(img2, depth1, depth2)]
         img2= np.asarray([img2])
         img2=np.transpose(img2, (0, 4, 1, 2,3))
+        # print("img2",img2.shape)
 
 
 
     v = np.concatenate([img1,img2],axis = 1)
+    # print("v",v.shape)
+    # print("sensor_1",sensor_1.shape)
 
     #     v.transpose(0,4,1,2,3)
-    return v
+    if  opt.sensor_types :
+        return  v, sensor_1
+    else: return v
 
 
-def dump(img_lst, dirpath = 'data', start = 0, skip = 2, length = 7, pre = 2 ,in_chanel =3,out_chanel=3):
-    a, b = get_pair(img_lst, pre, skip, length)
-    task = [(i, j) for i, j in zip(a, b)]
-    gen = (gen_np(j ,in_chanel,out_chanel) for j in task)
-    return gen
 
-
-def data_gen(data_path, opt):
+def dump(img_lst,  start , opt):
     skip = opt.skip
     length = opt.depth
     pre = opt.depth
     in_chanel = opt.input_nc
     out_chanel = opt.output_nc
+
+    a, b = get_pair(img_lst, pre, skip, length)
+    task = [(i, j) for i, j in zip(a, b)]
+    gen = (gen_np(j ,in_chanel,out_chanel,opt) for j in task)
+    return gen
+
+
+def data_gen(data_path, opt):
+
     start = 0
-    img_lst = glob.glob(data_path + "**.png")
+    img_lst = glob.glob(data_path + "**.png") if glob.glob(data_path + "**.png") else glob.glob(data_path + "**.jpg")
     img_lst.sort()
     # print(img_lst)
-    gen = dump(img_lst, 'video/{}{}'.format(*data_path.split('/')[-3:-1]), start, skip, length, pre ,in_chanel,out_chanel)
+    gen = dump(img_lst, start, opt)
     return data_path, gen
 
 

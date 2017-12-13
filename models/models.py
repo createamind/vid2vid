@@ -15,6 +15,10 @@ def create_model(opt):
         assert(opt.dataset_mode == 'single')
         from .test_model import TestModel
         model = TestModel()
+    elif opt.model == "sensor_model":
+        assert(opt.dataset_mode == "v")
+        from .sensor_model import sensor_model
+        model = sensor_model()
     else:
         raise ValueError("Model [%s] not recognized." % opt.model)
     model.initialize(opt)

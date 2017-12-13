@@ -4,7 +4,7 @@ import zlib
 import pickle
 import glob
 import numpy as np
-
+from collections import namedtuple,OrderedDict
 import zmq
 import random
 import logging
@@ -62,16 +62,24 @@ class SerializingSocket(zmq.Socket):
         return A.reshape(md['shape'])
 
 class imgsocket(SerializingSocket):
-    def send_array_(self, A, flags = 0, copy = True, track = False, filename = None):
+    def send_array_(self, A, flags = 0, copy = True, track = False, filename = None,num =1):
         #print('ffff',filename)
         self.send_json(filename , flags | zmq.SNDMORE)
+        if num == 1:
+            self.send_array( A.copy(order='C'), flags = flags, copy = copy, track = track)
+        if num >1:
+            [ self.send_array(A[i].copy(order = 'C'), flags = flags |  zmq.SNDMORE if i != num-1 else flags , copy = copy, track = track) for i in range(num)]
 
-        self.send_array( A.copy(order='C'), flags = flags, copy = copy, track = track)
 
-    def recv_array_(self, flags = 0, copy = True, track = False):
+
+    def recv_array_(self, flags = 0, copy = True, track = False,num =1):
 
         filename = self.recv_json(flags = flags)
-        data = self.recv_array(flags = flags, copy = copy, track = track)
+        if num == 1:
+            data = self.recv_array(flags = flags, copy = copy, track = track)
+        if num >1:
+            data = [ self.recv_array(flags = flags, copy = copy, track = track) for i in range(num)]
+
         return filename , data
 
 
@@ -133,7 +141,7 @@ def start_server(port , opt ):
         else:
             data_path, gen = data_gen(random.choice(f_lst), opt)
             try:
-                [s.send_array_(data, copy=False, filename=data_path) for data in gen]
+                [s.send_array_(data, copy=False, filename=data_path,num = opt.input_num) for data in gen]
             except StopIteration:
                 data_path, gen = data_gen(random.choice(f_lst), opt)
 
@@ -149,14 +157,30 @@ def client(opt = None):
     [c.connect('tcp://{}:{}'.format(host,p)) for p in server_ports]
     res = []
     while 1:
-        filename , a = c.recv_array_(copy = False)
-        array = [ c.recv_array_(copy = False)[1] for i in range(opt.batchSize) ]
+
+
+        filename , a = c.recv_array_(copy = False,num = opt.input_num)
+        all_array = [ c.recv_array_(copy = False,num = opt.input_num) for i in range(opt.batchSize) ]
+        rbg_array = [i[1][0] for i in all_array]
+
+        if opt.sensor_types:
+            s_array = [i[1][1] for i in all_array]
+            S = np.concatenate(s_array, axis = 0)
+            A = np.concatenate(rbg_array, axis = 0)
+        else:
+            A = np.concatenate([rbg_array], axis = 0)
 
         #print(filename)
 
-        A = np.concatenate(array,axis = 0)
 
-        yield filename , A
+
+        # print("rbg_array .shape "*2,rbg_array[0].shape)
+        # print("A .shape " * 2, A.shape)
+        # print("rec S "*22,S)
+        if not opt.sensor_types:
+            yield filename , [A ]
+        else :
+            yield filename , [A ,S]
 
 '''
 load_video = 1
@@ -174,3 +198,48 @@ def setup_server(server_ports, opt):
 
     # Now we can connect a client to all these servers
     #Process(target = client, kwargs = {'ports' : server_ports}).start()
+
+
+
+
+
+
+if __name__=="__main__":
+
+    Opt = namedtuple("opt",[ "depth","batchSize","load_video","skip","overlap","data_root","input_nc","output_nc" ,"pre","input_num","sensor_types"])
+    opt = Opt(depth = 2,batchSize = 2,load_video = 0,skip = 1,overlap =0,data_root = "/data/dataset/torcs_data/**/",input_nc = 3,output_nc = 3,pre = 2,input_num =2,sensor_types = "angle,speedX,speedY")
+
+    f_lst = glob.glob(opt.data_root)
+    c = client(opt)
+
+    for i, d in c:
+        print(type(d))
+        print('d[0]',d[0][0])
+        print('d[1]', d[0][1])
+
+
+"""
+        self._ob_status = np.hstack((_focusScaled,  5 , 0-4
+                                     status.angle / np.pi, 1 ,5
+                                     _track,                19 ,6-24
+                                     status.trackPos,        1,25
+                                     status.speedX / 200.,   1,26
+                                     status.speedY / 200.,   1,27
+                                     status.speedZ / 200.,   1,28
+                                     np.array(status.wheelSpinVel) / 100.0,  4, 29-32
+                                     status.rpm / 10000.,  1,33
+                                     speedXDelta,          1,34
+                                     angleDelta * 10.,     1,35
+                                     trackPosDelta * 10.,  1,36
+                                     status.damage,        1,37
+                                     np.array(status.opponents) / 200.,  36, 38-73
+                                     
+
+                                     ))
+
+
+
+"""
+
+
+

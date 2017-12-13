@@ -13,7 +13,7 @@ class BaseOptions():
         self.parser.add_argument('--dataroot', default= '/data/', help='path to images (should have subfolders trainA, trainB, valA, valB, etc)')
 
         #self.parser.add_argument('--dataroot', required=True,  help='path to images (should have subfolders trainA, trainB, valA, valB, etc)')
-        self.parser.add_argument('--batchSize', type=int, default=1, help='input batch size')
+        self.parser.add_argument('--batchSize', type=int, default=16, help='input batch size')
         self.parser.add_argument('--loadSize', type=int, default=286, help='scale images to this size')
         self.parser.add_argument('--fineSize', type=int, default=256, help='then crop to this size')
         ## add 3D depth
@@ -43,6 +43,9 @@ class BaseOptions():
         self.parser.add_argument('--resize_or_crop', type=str, default='resize_and_crop', help='scaling and cropping of images at load time [resize_and_crop|crop|scale_width|scale_width_and_crop]')
         self.parser.add_argument('--no_flip', action='store_true', help='if specified, do not flip the images for data augmentation')
         self.parser.add_argument('--init_type', type=str, default='xavier', help='network initialization [normal|xavier|kaiming|orthogonal]')
+        self.parser.add_argument('--input_num', type = int, default = 1,help = 'input num ,if only rgbd ,num =1, if add more sensor ,num = 2 or more')
+        self.parser.add_argument('--sensor_types', type = str, default = '',
+                                 help = 'angle,speedX,speedY')
 
 
 

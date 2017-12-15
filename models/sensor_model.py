@@ -32,7 +32,7 @@ class sensor_model(Pix2PixModel):
     def forward(self):
         self.real_A = Variable(self.input_A)
         self.fake_B ,self.speedX_pred= self.netG(self.real_A)
-        print("speedX_pred",self.speedX_pred.size())
+        #print("speedX_pred",self.speedX_pred.size())
 
         self.real_B = Variable(self.input_B)
 
@@ -40,7 +40,7 @@ class sensor_model(Pix2PixModel):
         # Fake
         # stop backprop to the generator by detaching fake_B
         #fake_AB = self.fake_AB_pool.query(torch.cat((self.real_A, self.fake_B), 1).data)
-        print(" A {}  B {}".format(self.real_A.size(),self.fake_B.size()))
+        #print(" A {}  B {}".format(self.real_A.size(),self.fake_B.size()))
 
         fake_AB = torch.cat((self.real_A, self.fake_B), 1).data
         fake_AB_ = Variable(fake_AB)

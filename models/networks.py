@@ -563,17 +563,17 @@ class SensorGenerator(nn.Module):
                # nn.Linear(512, 256),
                # nn.Linear(256, out_size),
                ]
-
         self.pre = pre
-
         self.set_pre = True
 
     def pre_out(self,x):
-
-
-
         for l in self.pre:
-            print(l)
+            #print("------------------------")
+            #print(l)
+            # x=x.cuda()
+            #print(x)
+            l.cuda()
+
             x = F.relu(l(x))
         return x
 
@@ -583,7 +583,12 @@ class SensorGenerator(nn.Module):
     def forward(self, input):
         if  self.gpu_ids and isinstance(input.data, torch.cuda.FloatTensor):
             out_size = input.size()[2]
-            code = self.code(input)
+            #input=input.cuda()
+            code = self.code(input) #.cuda()
+
+            #print("code")
+            #print(code)
+
             def mul(code):
                 res = 1
                 for i in code.size()[1:]:
@@ -593,9 +598,8 @@ class SensorGenerator(nn.Module):
 
             self.build_pre(code_size, out_size)
 
-
-
-
+            # nn.parallel.data_parallel(self.model, code, self.gpu_ids)
+            # nn.parallel.data_parallel(self.pre_out, code.view(-1, code_size), self.gpu_ids)
 
             return nn.parallel.data_parallel(self.model, code, self.gpu_ids),nn.parallel.data_parallel(self.pre_out, code.view(-1, code_size), self.gpu_ids)
         else:
@@ -624,7 +628,7 @@ class Action_D(nn.Module):
         super(Action_D, self).__init__()
 
 
-        self.fc1 = nn.Linear(depth, 1)
+        self.fc1 = nn.Linear(depth, 1).cuda()
 
 
     def forward(self, x):

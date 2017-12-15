@@ -59,7 +59,7 @@ class VideoDataset(BaseDataset):
         #AB = np.load(AB_path)
         filename, ABS= next(self.c)
         AB = ABS[0]
-        print("AB",AB.shape)
+        #print("AB",AB.shape)
         if  self.opt.sensor_types:
             S = ABS[1]
 

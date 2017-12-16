@@ -44,8 +44,7 @@ class BaseOptions():
         self.parser.add_argument('--no_flip', action='store_true', help='if specified, do not flip the images for data augmentation')
         self.parser.add_argument('--init_type', type=str, default='xavier', help='network initialization [normal|xavier|kaiming|orthogonal]')
         self.parser.add_argument('--input_num', type = int, default = 1,help = 'input num ,if only rgbd ,num =1, if add more sensor ,num = 2 or more')
-        self.parser.add_argument('--sensor_types', type = str, default = '',
-                                 help = 'angle,speedX,speedY')
+        self.parser.add_argument('--sensor_types', type = str, default = '',  help = 'angle,speedX,speedY')
 
 
 

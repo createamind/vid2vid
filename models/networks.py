@@ -558,10 +558,10 @@ class SensorGenerator(nn.Module):
 
         pre = []
         pre +=[
-            nn.Linear(code_size, out_size),
-               # nn.Linear(1024, 512),
-               # nn.Linear(512, 256),
-               # nn.Linear(256, out_size),
+            nn.Linear(code_size, 256),
+                #nn.Linear(1024, 512),
+                nn.Linear(256, 64),
+                nn.Linear(64, out_size),
                ]
         self.pre = pre
         self.set_pre = True
@@ -572,7 +572,7 @@ class SensorGenerator(nn.Module):
             #print(l)
             # x=x.cuda()
             #print(x)
-            l.cuda()
+            #l.cuda()
 
             x = F.relu(l(x))
         return x
@@ -628,11 +628,18 @@ class Action_D(nn.Module):
         super(Action_D, self).__init__()
 
 
-        self.fc1 = nn.Linear(depth, 1).cuda()
+        self.fc1 = nn.Linear(depth, 1024).cuda()
+        self.fc2 = nn.Linear(1024, 256).cuda()
+        self.fc3 = nn.Linear(256, 1).cuda()
+
+
 
 
     def forward(self, x):
 
         x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = F.relu(self.fc3(x))
+
 
         return x

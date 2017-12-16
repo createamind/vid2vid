@@ -31,7 +31,7 @@ class sensor_model(Pix2PixModel):
         if self.gpu_ids and torch.cuda.is_available():
             self.speedX = self.speedX.cuda()
         #print("input.action")
-        #print(input["action"])
+        print(input["action"])
 
     def forward(self):
         self.real_A = Variable(self.input_A)
@@ -40,7 +40,7 @@ class sensor_model(Pix2PixModel):
 
         self.real_B = Variable(self.input_B)
 
-        print("...............................")
+        print(". . . . . . . . . . . . . ................... . . . . . . . ............")
         print(self.speedX)
 
 

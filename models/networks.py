@@ -558,21 +558,21 @@ class SensorGenerator(nn.Module):
 
         pre = []
         pre +=[
-            nn.Linear(code_size, 256),
+            nn.Linear(code_size, 128).cuda(),
                 #nn.Linear(1024, 512),
-                nn.Linear(256, 64),
-                nn.Linear(64, out_size),
+                #nn.Linear(32, 16).cuda(),
+                nn.Linear(128, out_size).cuda(),
                ]
         self.pre = pre
         self.set_pre = True
 
     def pre_out(self,x):
         for l in self.pre:
-            #print("------------------------")
-            #print(l)
+            print("------------------------")
+            print(l)
             # x=x.cuda()
             #print(x)
-            #l.cuda()
+            # l.cuda()
 
             x = F.relu(l(x))
         return x

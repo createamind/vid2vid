@@ -119,6 +119,8 @@ def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropo
         netG = UnetGenerator(input_nc, output_nc, 8, ngf, norm_layer=norm_layer, use_dropout=use_dropout, gpu_ids=gpu_ids)
     elif which_model_netG == 'SensorGenerator':
         netG = SensorGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=1, gpu_ids=gpu_ids)
+    elif which_model_netG == 'SequenceGenerator':
+        netG = SequenceGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=1, gpu_ids=gpu_ids)
     else:
         raise NotImplementedError('Generator model name [%s] is not recognized' % which_model_netG)
     if len(gpu_ids) > 0:
@@ -139,6 +141,8 @@ def define_D(input_nc, ndf, which_model_netD,
         netD = NLayerDiscriminator(input_nc, ndf, n_layers=3, norm_layer=norm_layer, use_sigmoid=use_sigmoid, gpu_ids=gpu_ids)
     elif which_model_netD == 'n_layers':
         netD = NLayerDiscriminator(input_nc, ndf, n_layers_D, norm_layer=norm_layer, use_sigmoid=use_sigmoid, gpu_ids=gpu_ids)
+    elif which_model_netD == 'SequenceDiscriminator':
+        netD = SequenceDiscriminator()
     else:
         raise NotImplementedError('Discriminator model name [%s] is not recognized' %
                                   which_model_netD)
@@ -526,8 +530,6 @@ class SensorGenerator(nn.Module):
                                   use_dropout = use_dropout, use_bias = use_bias),
                       ]
         code = model[:]
-
-
         model = []
 
         for i in range(n_downsampling):
@@ -546,15 +548,11 @@ class SensorGenerator(nn.Module):
 
         self.model = nn.Sequential(*model)
 
-
-
         self.code = nn.Sequential(*code)
     def build_pre(self,code_size,out_size):
         if  getattr(self,"set_pre",None):
            return
         print("set up action prediction net")
-
-
 
         pre = []
         pre +=[
@@ -572,13 +570,9 @@ class SensorGenerator(nn.Module):
             #print(l)
             # x=x.cuda()
             #print(x)
-            # l.cuda()
-
+            #l.cuda()
             x = F.relu(l(x))
         return x
-
-
-
 
     def forward(self, input):
         if  self.gpu_ids and isinstance(input.data, torch.cuda.FloatTensor):
@@ -614,9 +608,6 @@ class SensorGenerator(nn.Module):
 
             self.build_pre(code_size, out_size)
 
-
-
-
             a =self.model(code)
             code = code.view(-1, code_size)
             b = self.pre_out(code)
@@ -627,21 +618,14 @@ class Action_D(nn.Module):
     def __init__(self,depth):
         super(Action_D, self).__init__()
 
-
         self.fc1 = nn.Linear(depth, 1024).cuda()
         self.fc2 = nn.Linear(1024, 256).cuda()
         self.fc3 = nn.Linear(256, 1).cuda()
 
-
-
-
     def forward(self, x):
-
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
-
-
         return x
 
 

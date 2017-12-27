@@ -654,7 +654,7 @@ class SequenceGenerator(nn.Module):
     inputs:
     outputs:
     """
-    def __init__(self, input_nc, output_nc, rnn_input_sie=637, rnn_hidden_size=300, rnn_num_layers=2,
+    def __init__(self, input_nc, output_nc, rnn_input_sie, rnn_hidden_size=300, rnn_num_layers=2,
                  rnn_bidirectional=False, ngf=64, norm_layer=nn.BatchNorm2d, target_size=2,
                  use_dropout=False, n_blocks=6, gpu_ids=None, padding_type='reflect'):
         assert (n_blocks >= 0)

@@ -44,14 +44,30 @@ model.optimizers.append(model.optimizer_D)
 for optimizer in model.optimizers:
     model.schedulers.append(lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1))
 
-epoch = 10
+epoch = 2
+
+_inputs = {'video': fake_vid, 'target_seq': fake_seq}
+
+# pre-train generator
 for i in range(epoch):
-    print('epoch: ', i)
-    _inputs = {'video': fake_vid, 'target_seq': fake_seq}
+    print('pre-train generator, epoch: ', i)
     print('input vid: {}, input seq: {}'.format(_inputs['video'].size(), _inputs['target_seq'].size()))
     model.set_input(_inputs)
-    model.forward()
-    print('generated sequence: ', model.gen_seq.size())
-    model.backward_D()
-    model.backward_G()
+    loss = model.pretrain_G_step()
+    print('current error: ', loss.data[0])
+
+# pre-train discriminator
+for i in range(epoch + 5):
+    print('pre-train discriminator, epoch: ', i)
+    print('input vid: {}, input seq: {}'.format(_inputs['video'].size(), _inputs['target_seq'].size()))
+    model.set_input(_inputs)
+    loss = model.pretrain_D_step()
+    print('current error: ', loss.data[0])
+
+# adversarial training
+for i in range(epoch):
+    print('adversarial training, epoch: ', i)
+    print('input vid: {}, input seq: {}'.format(_inputs['video'].size(), _inputs['target_seq'].size()))
+    model.set_input(_inputs)
+    model.optimize_parameters()
     print('current error: ', str(model.get_current_errors()))

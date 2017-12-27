@@ -135,17 +135,12 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
     epoch_iter = 0
 
     for i, data in enumerate(dataset):
-
-
-
-
         if 0:
-
-
             AB_path = "./data/data/"
             trial_A = np.ones((opt.batchSize, opt.input_nc, opt.depth, opt.fineSize, opt.fineSize))
             trial_B = np.ones((opt.batchSize, opt.output_nc, opt.depth, opt.fineSize, opt.fineSize))
             data = {'A': trial_A, 'B': trial_B, 'A_paths': AB_path, 'B_paths': AB_path}
+
 
         #data = dict(data)
 

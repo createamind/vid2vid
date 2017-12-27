@@ -558,22 +558,22 @@ class SensorGenerator(nn.Module):
 
         pre = []
         pre +=[
-            nn.Linear(code_size, out_size),
-               # nn.Linear(1024, 512),
-               # nn.Linear(512, 256),
-               # nn.Linear(256, out_size),
+            nn.Linear(code_size, 256),
+                #nn.Linear(1024, 512),
+                nn.Linear(256, 64),
+                nn.Linear(64, out_size),
                ]
-
         self.pre = pre
-
         self.set_pre = True
 
     def pre_out(self,x):
-
-
-
         for l in self.pre:
-            print(l)
+            #print("------------------------")
+            #print(l)
+            # x=x.cuda()
+            #print(x)
+            #l.cuda()
+
             x = F.relu(l(x))
         return x
 
@@ -583,7 +583,12 @@ class SensorGenerator(nn.Module):
     def forward(self, input):
         if  self.gpu_ids and isinstance(input.data, torch.cuda.FloatTensor):
             out_size = input.size()[2]
-            code = self.code(input)
+            #input=input.cuda()
+            code = self.code(input) #.cuda()
+
+            #print("code")
+            #print(code)
+
             def mul(code):
                 res = 1
                 for i in code.size()[1:]:
@@ -593,9 +598,8 @@ class SensorGenerator(nn.Module):
 
             self.build_pre(code_size, out_size)
 
-
-
-
+            # nn.parallel.data_parallel(self.model, code, self.gpu_ids)
+            # nn.parallel.data_parallel(self.pre_out, code.view(-1, code_size), self.gpu_ids)
 
             return nn.parallel.data_parallel(self.model, code, self.gpu_ids),nn.parallel.data_parallel(self.pre_out, code.view(-1, code_size), self.gpu_ids)
         else:
@@ -624,11 +628,191 @@ class Action_D(nn.Module):
         super(Action_D, self).__init__()
 
 
-        self.fc1 = nn.Linear(depth, 1)
+        self.fc1 = nn.Linear(depth, 1024).cuda()
+        self.fc2 = nn.Linear(1024, 256).cuda()
+        self.fc3 = nn.Linear(256, 1).cuda()
+
+
 
 
     def forward(self, x):
 
         x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = F.relu(self.fc3(x))
+
 
         return x
+
+
+
+# Added by Jeven 2017-12-24
+class SequenceGenerator(nn.Module):
+    """
+    Encoding video using a CNN image encoder (Resnet) to a sequence of embeddings,
+        which are feed later into a RNN generator to generate target sequence
+    inputs:
+    outputs:
+    """
+    def __init__(self, input_nc, output_nc, rnn_input_sie, rnn_hidden_size=300, rnn_num_layers=2,
+                 rnn_bidirectional=False, ngf=64, norm_layer=nn.BatchNorm2d, target_size=2,
+                 use_dropout=False, n_blocks=6, gpu_ids=None, padding_type='reflect'):
+        assert (n_blocks >= 0)
+        super(SequenceGenerator, self).__init__()
+        self.input_nc = input_nc
+        self.output_nc = output_nc
+        self.rnn_input_size = rnn_input_sie
+        self.rnn_hidden_size = rnn_hidden_size
+        self.target_size = target_size
+        self.rnn_num_layers = rnn_num_layers
+        self.rnn_bidirectional = rnn_bidirectional
+        self.ngf = ngf
+        self.gpu_ids = gpu_ids
+        if type(norm_layer) == functools.partial:
+            use_bias = norm_layer.func == nn.InstanceNorm3d
+        else:
+            use_bias = norm_layer == nn.InstanceNorm3d
+
+        model = [nn.Conv3d(input_nc, ngf, kernel_size=(3, 7, 7), padding=(1, 3, 3),
+                           bias=use_bias),
+
+                 norm_layer(ngf),
+                 nn.ReLU(True)]
+
+        n_downsampling = 2
+        for i in range(n_downsampling):
+            mult = 2 ** i
+            model += [nn.Conv3d(ngf * mult, ngf * mult * 2, kernel_size=(3, 3, 3),
+                                stride=(1, 2, 2), padding=(1, 1, 1), bias=use_bias),
+                      norm_layer(ngf * mult * 2),
+                      nn.ReLU(True)]
+
+        mult = 2 ** n_downsampling
+
+        for i in range(n_blocks):
+            model += [ResnetBlock_3d(ngf * mult, padding_type=padding_type, norm_layer=norm_layer,
+                                     use_dropout=use_dropout, use_bias=use_bias),
+                      ]
+        for i in range(n_downsampling):
+            mult = 2 ** (n_downsampling - i)
+            model += [nn.ConvTranspose3d(ngf * mult, int(ngf * mult / 2),
+                                         kernel_size=(3, 3, 3), stride=(1, 1, 2),
+                                         padding=(1, 1, 1),
+                                         bias=use_bias),
+                      norm_layer(int(ngf * mult / 2)),
+                      nn.ReLU(True)]
+        model += [nn.Conv3d(ngf, output_nc, kernel_size=(3, 8, 8), padding=(1, 3, 3)),
+                  nn.Conv3d(output_nc, output_nc, kernel_size=(3, 6, 6), padding=(1, 3, 3), stride=(1, 1, 1), )]
+        model += [nn.Tanh()]
+
+        self.video_encoder = nn.Sequential(*model)
+
+        # RNN Generator
+        self.rnn_generator = nn.LSTM(input_size=self.rnn_input_size, hidden_size=self.rnn_hidden_size,
+                                     num_layers=self.rnn_num_layers, bidirectional=self.rnn_bidirectional,
+                                     batch_first=True)
+        self.rnn2out = nn.Linear(self.rnn_hidden_size, self.target_size)
+
+    def forward(self, input):
+        if self.gpu_ids and isinstance(input.data, torch.cuda.FloatTensor):
+            img_seq = nn.parallel.data_parallel(self.video_encoder, input, self.gpu_ids)
+            rnn_outs, _ = nn.parallel.data_parallel(self.rnn_generator, img_seq.view(1, img_seq.shape[2], -1),
+                                                   self.gpu_ids)
+            return nn.parallel.data_parallel(self.rnn2out, rnn_outs, self.gpu_ids)
+        else:
+            img_seq = self.video_encoder(input)
+            rnn_outs, _ = self.rnn_generator(img_seq.view(1, img_seq.shape[2], -1))
+            return self.rnn2out(rnn_outs)
+
+    def batch_mse_loss(self, inp, target):
+        """
+        Returns the MSE Loss for predicting target sequence.
+        Inputs: input, target
+            - input: batch_size x seq_len
+            - target: batch_size x seq_len
+            inp should be target with <s> (start letter) prepended
+        """
+
+        loss_fn = nn.MSELoss()
+        loss = loss_fn(self.forward(inp), target)
+        return loss  # per batch
+
+
+class SequenceDiscriminator(nn.Module):
+    """
+    Use a bidirectional LSTM as a discriminator for sequence
+    inputs:
+    outputs:
+    """
+    def __init__(self, input_size, hidden_size, norm_layer=nn.BatchNorm2d,
+                 dropout=0.5, gpu_ids=None, num_layers=2, bidirectional=True):
+        super(SequenceDiscriminator, self).__init__()
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.bidirectional = bidirectional
+        self.norm_layer = num_layers
+        self.dropout = dropout
+        self.gpu_ids = gpu_ids
+
+        self.rnn_discriminator = nn.LSTM(input_size=self.input_size, hidden_size=self.hidden_size,
+                                         num_layers=self.num_layers, bidirectional=self.bidirectional,
+                                         batch_first=True)
+
+        output_module = [nn.Linear(2 * self.hidden_size, self.hidden_size)]     # bidirectional
+        output_module += [nn.Tanh()]
+        output_module += [nn.Dropout(p=dropout)]
+        output_module += [nn.Linear(self.hidden_size, 1)]
+        output_module += [nn.Sigmoid()]
+        self.output_layer = nn.Sequential(*output_module)
+
+    def forward(self, input):
+        out, _ = self.rnn_discriminator(input)  # batch_size x depth(seq_len) x hidden_size
+        return self.output_layer(out)
+
+    def batch_classify(self, input):
+        """
+        Classifies a batch of sequences.
+        Inputs: inp
+            - inp: batch_size x depth(seq_len) x 2*hidden_size
+        Returns: out
+            - out: batch_size ([0,1] score)
+        """
+        out = self.forward(input)
+        return out.view(out.shape[0], -1)
+
+    def batch_bce_loss(self, input, target):
+        """
+        Returns Binary Cross Entropy Loss for discriminator.
+         Inputs: input, target
+            - input: batch_size x depth x 2*hidden_size
+            - target: batch_size x depth (binary 1/0)
+        """
+        loss_fn = nn.BCELoss()
+        out = self.batch_classify(input)
+        return loss_fn(out, target)
+
+
+# todo remove
+def test_seq_gd():
+    generator = SequenceGenerator(input_nc=3, output_nc=1)
+    fake_x = autograd.Variable(torch.randn(1, 3, 30, 50, 50))   # batch_size x channels x depth x height x width
+    g_out = generator.forward(fake_x)
+    print('g_out: ', g_out.shape)
+    g_target = autograd.Variable(torch.randn(g_out.shape))
+    g_loss = generator.batch_mse_loss(fake_x, g_target)
+    print('g_loss: ', g_loss)
+    discriminator = SequenceDiscriminator(g_out.shape[2], 100)
+    d_out = discriminator.forward(g_out)
+    print('d_out: ', d_out.shape)
+    pred = discriminator.batch_classify(g_out)
+    print('d_pred: ', pred.shape)
+    target = autograd.Variable(torch.zeros(pred.shape))
+    print('target: ', target.shape)
+    d_loss = discriminator.batch_bce_loss(g_out, target)
+    print('d_loss: ', d_loss)
+
+
+if __name__ == '__main__':
+    test_seq_gd()
+

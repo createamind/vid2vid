@@ -59,7 +59,7 @@ class VideoDataset(BaseDataset):
         #AB = np.load(AB_path)
         filename, ABS= next(self.c)
         AB = ABS[0]
-        print("AB",AB.shape)
+        #print("AB",AB.shape)
         if  self.opt.sensor_types:
             S = ABS[1]
 
@@ -75,7 +75,9 @@ class VideoDataset(BaseDataset):
         B = AB[:,self.opt.input_nc:]/127.5 -1.
         # print("====== load A size ==== {0}".format(A.shape))
         # print("====== load B size ==== {0}".format(B.shape))
-        return {'A': A, 'B': B,"speedX":sensor_data.speedX,
+        # return {'A': A, 'B': B,"speedX":sensor_data.speedX,
+        #         'A_paths': AB_path, 'B_paths': AB_path}
+        return {'A': A, 'B': B, "speedX": sensor_data.speedX,"action":sensor_data.action,
                 'A_paths': AB_path, 'B_paths': AB_path}
 
     def __len__(self):

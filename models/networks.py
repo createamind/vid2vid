@@ -1,11 +1,15 @@
+import functools
+
 import torch
 import torch.nn as nn
-from torch.nn import init
-import functools
 import torch.nn.functional as F
 from torch.autograd import Variable
+from torch.nn import init
 from torch.optim import lr_scheduler
-import numpy as np
+
+from scipy.sparse import csr_matrix
+
+
 ###############################################################################
 # Functions
 ###############################################################################
@@ -629,6 +633,7 @@ class Action_D(nn.Module):
         return x
 
 
+#matrix = (matrix)
 
 # Added by Jeven 2017-12-24
 class SequenceGenerator(nn.Module):
@@ -638,14 +643,14 @@ class SequenceGenerator(nn.Module):
     inputs:
     outputs:
     """
-    def __init__(self, input_nc, output_nc, rnn_input_sie=637, rnn_hidden_size=300, rnn_num_layers=2,
-                 rnn_bidirectional=False, ngf=64, norm_layer=nn.BatchNorm2d, target_size=2,
-                 use_dropout=False, n_blocks=6, gpu_ids=None, padding_type='reflect'):
+    def __init__(self, input_nc, output_nc, rnn_input_sie=65536, rnn_hidden_size=300, rnn_num_layers=2,
+                 rnn_bidirectional=False, ngf=64, norm_layer=nn.BatchNorm2d, target_size=1,
+                 use_dropout=False, n_blocks=1, gpu_ids=None, padding_type='reflect'):
         assert (n_blocks >= 0)
         super(SequenceGenerator, self).__init__()
         self.input_nc = input_nc
         self.output_nc = output_nc
-        self.rnn_input_size = rnn_input_sie
+        self.rnn_input_size = 48576
         self.rnn_hidden_size = rnn_hidden_size
         self.target_size = target_size
         self.rnn_num_layers = rnn_num_layers
@@ -688,7 +693,6 @@ class SequenceGenerator(nn.Module):
         model += [nn.Conv3d(ngf, output_nc, kernel_size=(3, 8, 8), padding=(1, 3, 3)),
                   nn.Conv3d(output_nc, output_nc, kernel_size=(3, 6, 6), padding=(1, 3, 3), stride=(1, 1, 1), )]
         model += [nn.Tanh()]
-
         self.video_encoder = nn.Sequential(*model)
 
         # RNN Generator
@@ -698,9 +702,16 @@ class SequenceGenerator(nn.Module):
         self.rnn2out = nn.Linear(self.rnn_hidden_size, self.target_size)
 
     def forward(self, input):
+        #print("'''''''''img_seq'111'''''")
+        #print(input.data.size())
         if self.gpu_ids and isinstance(input.data, torch.cuda.FloatTensor):
             img_seq = nn.parallel.data_parallel(self.video_encoder, input, self.gpu_ids)
-            rnn_outs, _ = nn.parallel.data_parallel(self.rnn_generator, img_seq.view(1, img_seq.shape[2], -1),
+            #print(img_seq.size()[2])
+            #img_seq = csr_matrix(img_seq)
+            #print("'''''''''img_seq''''''")
+
+            #print(img_seq)
+            rnn_outs, _ = nn.parallel.data_parallel(self.rnn_generator, img_seq.view(1, img_seq.size()[2], -1),
                                                    self.gpu_ids)
             return nn.parallel.data_parallel(self.rnn2out, rnn_outs, self.gpu_ids)
         else:
@@ -728,7 +739,7 @@ class SequenceDiscriminator(nn.Module):
     inputs:
     outputs:
     """
-    def __init__(self, input_size, hidden_size, norm_layer=nn.BatchNorm2d,
+    def __init__(self, input_size=1, hidden_size=300, norm_layer=nn.BatchNorm2d,
                  dropout=0.5, gpu_ids=None, num_layers=2, bidirectional=True):
         super(SequenceDiscriminator, self).__init__()
         self.input_size = input_size

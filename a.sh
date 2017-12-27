@@ -25,4 +25,11 @@ python  train.py  --dataset_mode v --model sensor_model --which_model_netG Seque
 
 
 
+python  train.py  --dataset_mode v --model sensor_model --which_model_netG SequenceGenerator  --which_model_netD SequenceDiscriminator  --which_direction AtoB --norm batch --niter 10 --niter_decay 10 --batchSize 1 --name speedx --depth 5 --max_dataset_size 15000 --output_nc 3 --input_nc 3 --sensor_types speedX,action --data_dir '/data/dataset/torcs_data/**/' --input_num 2 --gpu_ids 2
+
+
+
+
+
+
 

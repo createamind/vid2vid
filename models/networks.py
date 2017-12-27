@@ -716,12 +716,12 @@ class SequenceGenerator(nn.Module):
     def forward(self, input):
         if self.gpu_ids and isinstance(input.data, torch.cuda.FloatTensor):
             img_seq = nn.parallel.data_parallel(self.video_encoder, input, self.gpu_ids)
-            rnn_outs, _ = nn.parallel.data_parallel(self.rnn_generator, img_seq.view(1, img_seq.shape[2], -1),
+            rnn_outs, _ = nn.parallel.data_parallel(self.rnn_generator, img_seq.view(1, img_seq.size()[2], -1),
                                                    self.gpu_ids)
             return nn.parallel.data_parallel(self.rnn2out, rnn_outs, self.gpu_ids)
         else:
             img_seq = self.video_encoder(input)
-            rnn_outs, _ = self.rnn_generator(img_seq.view(1, img_seq.shape[2], -1))
+            rnn_outs, _ = self.rnn_generator(img_seq.view(1, img_seq.size()[2], -1))
             return self.rnn2out(rnn_outs)
 
     def batch_mse_loss(self, inp, target):
@@ -779,7 +779,7 @@ class SequenceDiscriminator(nn.Module):
             - out: batch_size ([0,1] score)
         """
         out = self.forward(input)
-        return out.view(out.shape[0], -1)
+        return out.view(out.size()[0], -1)
 
     def batch_bce_loss(self, input, target):
         """
@@ -798,17 +798,17 @@ def test_seq_gd():
     generator = SequenceGenerator(input_nc=3, output_nc=1)
     fake_x = autograd.Variable(torch.randn(1, 3, 30, 50, 50))   # batch_size x channels x depth x height x width
     g_out = generator.forward(fake_x)
-    print('g_out: ', g_out.shape)
-    g_target = autograd.Variable(torch.randn(g_out.shape))
+    print('g_out: ', g_out.size())
+    g_target = autograd.Variable(torch.randn(g_out.size()))
     g_loss = generator.batch_mse_loss(fake_x, g_target)
     print('g_loss: ', g_loss)
-    discriminator = SequenceDiscriminator(g_out.shape[2], 100)
+    discriminator = SequenceDiscriminator(g_out.size()[2], 100)
     d_out = discriminator.forward(g_out)
-    print('d_out: ', d_out.shape)
+    print('d_out: ', d_out.size())
     pred = discriminator.batch_classify(g_out)
-    print('d_pred: ', pred.shape)
-    target = autograd.Variable(torch.zeros(pred.shape))
-    print('target: ', target.shape)
+    print('d_pred: ', pred.size())
+    target = autograd.Variable(torch.zeros(pred.size()))
+    print('target: ', target.size())
     d_loss = discriminator.batch_bce_loss(g_out, target)
     print('d_loss: ', d_loss)
 

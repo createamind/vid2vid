@@ -716,12 +716,12 @@ class SequenceGenerator(nn.Module):
     def forward(self, input):
         if self.gpu_ids and isinstance(input.data, torch.cuda.FloatTensor):
             img_seq = nn.parallel.data_parallel(self.video_encoder, input, self.gpu_ids)
-            rnn_outs, _ = nn.parallel.data_parallel(self.rnn_generator, img_seq.view(1, img_seq.shape[2], -1),
+            rnn_outs, _ = nn.parallel.data_parallel(self.rnn_generator, img_seq.view(1, img_seq.size()[2], -1),
                                                    self.gpu_ids)
             return nn.parallel.data_parallel(self.rnn2out, rnn_outs, self.gpu_ids)
         else:
             img_seq = self.video_encoder(input)
-            rnn_outs, _ = self.rnn_generator(img_seq.view(1, img_seq.shape[2], -1))
+            rnn_outs, _ = self.rnn_generator(img_seq.view(1, img_seq.size()[2], -1))
             return self.rnn2out(rnn_outs)
 
     def batch_mse_loss(self, inp, target):
@@ -779,7 +779,7 @@ class SequenceDiscriminator(nn.Module):
             - out: batch_size ([0,1] score)
         """
         out = self.forward(input)
-        return out.view(out.shape[0], -1)
+        return out.view(out.size()[0], -1)
 
     def batch_bce_loss(self, input, target):
         """

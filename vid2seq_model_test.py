@@ -10,7 +10,7 @@ fake_seq = torch.autograd.Variable(torch.randn(1, 30, 2))
 print('encoded vid: ', generator.video_encoder(fake_vid).size())
 g_out = generator.forward(fake_vid)
 print('g_out: ', g_out.size())
-g_target = torch.autograd.Variable(torch.randn(g_out.shape))
+g_target = torch.autograd.Variable(torch.randn(g_out.size()))
 g_loss = generator.batch_mse_loss(fake_vid, g_target)
 print('g_loss: ', g_loss)
 discriminator = networks.SequenceDiscriminator(g_out.size()[2], 100)
@@ -44,14 +44,14 @@ model.optimizers.append(model.optimizer_D)
 for optimizer in model.optimizers:
     model.schedulers.append(lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1))
 
-epoch = 10
+epoch = 1000000
 for i in range(epoch):
     print('epoch: ', i)
     _inputs = {'video': fake_vid, 'target_seq': fake_seq}
-    print('input vid: {}, input seq: {}'.format(_inputs['video'].size(), _inputs['target_seq'].size()))
+    print('input vid: {}, input seq: {}'.format(_inputs['video'].size(), _inputs['target_seq']))
     model.set_input(_inputs)
     model.forward()
-    print('generated sequence: ', model.gen_seq.size())
+    print('generated sequence: ', model.gen_seq)
     model.backward_D()
     model.backward_G()
     print('current error: ', str(model.get_current_errors()))

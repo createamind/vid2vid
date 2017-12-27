@@ -93,7 +93,9 @@ class Vid2SeqModel(BaseModel):
         self.loss_D_fake = self.criterionGAN(pred_fake, False)
 
         # Real
-        pred_real = self.netD(self.input_seq)
+        label_size = list(self.input_seq.size())
+        label_size[2] = 1
+        pred_real = Variable(torch.ones(label_size))
         self.loss_D_real = self.criterionGAN(pred_real, True)
 
         # Combined loss

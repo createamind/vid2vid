@@ -2,6 +2,7 @@ import models.networks as networks
 import torch
 from models.vid2seq_model import Vid2SeqModel
 from torch.optim import lr_scheduler
+from torch.autograd import Variable
 
 generator = networks.SequenceGenerator(input_nc=3, output_nc=1, rnn_input_sie=232)
 # batch_size x channels x depth x height x width
@@ -44,14 +45,45 @@ model.optimizers.append(model.optimizer_D)
 for optimizer in model.optimizers:
     model.schedulers.append(lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1))
 
-epoch = 1000000
+epoch = 100000
+
+_inputs = {'video': fake_vid, 'target_seq': fake_seq}
+
+# pre-train generator
+print('='*20 + 'Pre-train Generator' + '='*20)
 for i in range(epoch):
-    print('epoch: ', i)
-    _inputs = {'video': fake_vid, 'target_seq': fake_seq}
-    print('input vid: {}, input seq: {}'.format(_inputs['video'].size(), _inputs['target_seq']))
+    print('pre-train generator, epoch: ', i)
+    print('input vid: {}, input seq: {}'.format(_inputs['video'].size(), _inputs['target_seq'].size()))
     model.set_input(_inputs)
+    g_loss = model.netG.batch_mse_loss(model.input_vid, model.input_seq)
+    model.optimizer_G.zero_grad()
+    g_loss.backward()
+    model.optimizer_G.step()
+    print('current error: ', g_loss.data[0])
+
+# pre-train discriminator TODO should not train D like this, just for test sake
+print('='*20 + 'Pre-train Discriminator' + '='*20)
+for i in range(epoch + 5):  # stronger discriminator
+    print('pre-train discriminator, epoch: ', i)
+    print('input vid: {}, input seq: {}'.format(_inputs['video'].size(), _inputs['target_seq'].size()))
+    model.set_input(_inputs)
+    label_size = list(model.input_seq.size())
+    label_size[2] = 1
+    target_real = Variable(torch.ones(label_size).resize_(label_size[0], label_size[1]))
+    target_fake = Variable(torch.zeros(label_size).resize_(label_size[0], label_size[1]))
     model.forward()
-    print('generated sequence: ', model.gen_seq)
-    model.backward_D()
-    model.backward_G()
+    d_loss = model.netD.batch_bce_loss(model.input_seq, target_real)
+    d_loss += model.netD.batch_bce_loss(model.gen_seq.detach(), target_fake)
+    model.optimizer_D.zero_grad()
+    d_loss.backward()
+    model.optimizer_D.step()
+    print('current error: ', d_loss.data[0])
+
+# adversarial training
+print('='*20 + 'Adversarial Training' + '='*20)
+for i in range(epoch):
+    print('adversarial training, epoch: ', i)
+    print('input vid: {}, input seq: {}'.format(_inputs['video'].size(), _inputs['target_seq'].size()))
+    model.set_input(_inputs)
+    model.optimize_parameters()
     print('current error: ', str(model.get_current_errors()))

@@ -668,14 +668,14 @@ class SequenceGenerator(nn.Module):
     outputs:
     """
 
-    def __init__(self, input_nc, output_nc, rnn_input_sie, rnn_hidden_size=300, rnn_num_layers=2,
-                 rnn_bidirectional=False, ngf=64, norm_layer=nn.BatchNorm2d, target_size=2,
+    def __init__(self, input_nc, output_nc, rnn_input_sie=48576, rnn_hidden_size=300, rnn_num_layers=2,
+                 rnn_bidirectional=False, ngf=64, norm_layer=nn.BatchNorm2d, target_size=1,
                  use_dropout=False, n_blocks=6, gpu_ids=None, padding_type='reflect'):
         assert (n_blocks >= 0)
         super(SequenceGenerator, self).__init__()
         self.input_nc = input_nc
         self.output_nc = output_nc
-        self.rnn_input_size = rnn_input_sie
+        self.rnn_input_size = 48576
         self.rnn_hidden_size = rnn_hidden_size
         self.target_size = target_size
         self.rnn_num_layers = rnn_num_layers
@@ -728,7 +728,7 @@ class SequenceGenerator(nn.Module):
         self.rnn2out = nn.Linear(self.rnn_hidden_size, self.target_size)
 
     def forward(self, inp):
-        if self.gpu_ids and isinstance(inp.data, torch.cuda.FloatTensor):
+        if self.gpu_ids and isinstance(inp, torch.cuda.FloatTensor):
             img_seq = nn.parallel.data_parallel(self.video_encoder, inp, self.gpu_ids)
             rnn_outs, _ = nn.parallel.data_parallel(self.rnn_generator, img_seq.view(1, img_seq.size()[2], -1),
                                                     self.gpu_ids)

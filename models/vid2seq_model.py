@@ -72,8 +72,8 @@ class Vid2SeqModel(BaseModel):
             self.input_vid = torch.from_numpy(self.input_A)
             self.input_seq = torch.from_numpy(inputs['target_seq'])
         else:
-            self.input_vid = torch.from_numpy(input['A'])     torch.from_numpy(input['A' if AtoB else 'B'])
-            self.input_seq = torch.from_numpy(input["speedX"])
+            self.input_vid = Variable(torch.from_numpy(input['A'])).float()
+            self.input_seq = Variable(torch.from_numpy(input["speedX"])).float()
         # convert to cuda
         if self.gpu_ids and torch.cuda.is_available():
             self.input_vid = self.input_vid.cuda()
@@ -95,7 +95,7 @@ class Vid2SeqModel(BaseModel):
         # Real
         label_size = list(self.input_seq.size())
         label_size[2] = 1
-        pred_real = Variable(torch.ones(label_size))
+        pred_real = Variable(torch.ones(label_size)).cuda()
         self.loss_D_real = self.criterionGAN(pred_real, True)
 
         # Combined loss

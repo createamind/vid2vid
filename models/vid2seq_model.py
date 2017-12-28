@@ -61,7 +61,7 @@ class Vid2SeqModel(BaseModel):
             networks.print_network(self.netD)
         print('-----------------------------------------------')
 
-    def set_input(self, inputs, is_numpy=False):
+    def set_input(self, input, is_numpy=False):
         """
         :param is_numpy: using numpy array or not
         :param inputs: a dict contains two inputs forms with key: 'video' and 'target_seq'
@@ -69,11 +69,11 @@ class Vid2SeqModel(BaseModel):
         """
         # numpy to torch tensor
         if is_numpy:
-            self.input_vid = torch.from_numpy(inputs['video'])
+            self.input_vid = torch.from_numpy(self.input_A)
             self.input_seq = torch.from_numpy(inputs['target_seq'])
         else:
-            self.input_vid = inputs['video']
-            self.input_seq = inputs['target_seq']
+            self.input_vid = Variable(torch.from_numpy(input['A'])).float()
+            self.input_seq = Variable(torch.from_numpy(input["speedX"])).float()
         # convert to cuda
         if self.gpu_ids and torch.cuda.is_available():
             self.input_vid = self.input_vid.cuda()
@@ -95,7 +95,7 @@ class Vid2SeqModel(BaseModel):
         # Real
         label_size = list(self.input_seq.size())
         label_size[2] = 1
-        pred_real = Variable(torch.ones(label_size))
+        pred_real = Variable(torch.ones(label_size)).cuda()
         self.loss_D_real = self.criterionGAN(pred_real, True)
 
         # Combined loss
@@ -114,6 +114,35 @@ class Vid2SeqModel(BaseModel):
         self.loss_G = self.loss_G_GAN + self.loss_G_L1
 
         self.loss_G.backward()
+
+
+
+
+    def pretrain_G_step(self):
+        g_loss = self.netG.batch_mse_loss(self.input_vid, self.input_seq)
+        self.optimizer_G.zero_grad()
+        g_loss.backward()
+        self.optimizer_G.step()
+        return g_loss
+
+
+    def pretrain_D_step(self):
+        label_size = list(self.input_seq.size())
+        label_size[2] = 1
+        target_real = Variable(torch.ones(label_size).resize_(label_size[0], label_size[1]))
+        target_fake = Variable(torch.zeros(label_size).resize_(label_size[0], label_size[1]))
+        self.forward()
+        d_loss = self.netD.batch_bce_loss(self.input_seq, target_real)
+        d_loss += self.netD.batch_bce_loss(self.gen_seq.detach(), target_fake)
+        self.optimizer_D.zero_grad()
+        d_loss.backward()
+        self.optimizer_D.step()
+        return d_loss
+
+
+
+
+
 
     def optimize_parameters(self):
         self.forward()

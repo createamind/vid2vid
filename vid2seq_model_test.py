@@ -14,6 +14,8 @@ print('g_out: ', g_out.size())
 g_target = torch.autograd.Variable(torch.randn(g_out.size()))
 g_loss = generator.batch_mse_loss(fake_vid, g_target)
 print('g_loss: ', g_loss)
+
+
 discriminator = networks.SequenceDiscriminator(g_out.size()[2], 100)
 d_out = discriminator.forward(g_out)
 print('d_out: ', d_out.size())
@@ -45,7 +47,7 @@ model.optimizers.append(model.optimizer_D)
 for optimizer in model.optimizers:
     model.schedulers.append(lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1))
 
-epoch = 10
+epoch = 100000
 
 _inputs = {'video': fake_vid, 'target_seq': fake_seq}
 
@@ -53,7 +55,7 @@ _inputs = {'video': fake_vid, 'target_seq': fake_seq}
 print('='*20 + 'Pre-train Generator' + '='*20)
 for i in range(epoch):
     print('pre-train generator, epoch: ', i)
-    print('input vid: {}, input seq: {}'.format(_inputs['video'].size(), _inputs['target_seq'].size()))
+    print('input vid: {}, input seq: {}'.format(_inputs['video'].size(), _inputs['target_seq']))
     model.set_input(_inputs)
     g_loss = model.netG.batch_mse_loss(model.input_vid, model.input_seq)
     model.optimizer_G.zero_grad()

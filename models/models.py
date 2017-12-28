@@ -19,6 +19,10 @@ def create_model(opt):
         assert(opt.dataset_mode == "v")
         from .sensor_model import sensor_model
         model = sensor_model()
+    elif opt.model == "vid2seq_model":
+        assert(opt.dataset_mode == "v")
+        from .vid2seq_model import Vid2SeqModel
+        model = Vid2SeqModel()
     else:
         raise ValueError("Model [%s] not recognized." % opt.model)
     model.initialize(opt)

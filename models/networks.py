@@ -128,6 +128,8 @@ def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropo
     elif which_model_netG == 'SensorGenerator':
         netG = SensorGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=1,
                                gpu_ids=gpu_ids)
+    elif which_model_netG == 'SequenceGenerator':
+        netG = SequenceGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=1, gpu_ids=gpu_ids)
     else:
         raise NotImplementedError('Generator model name [%s] is not recognized' % which_model_netG)
     if len(gpu_ids) > 0:
@@ -150,6 +152,8 @@ def define_D(input_nc, ndf, which_model_netD,
     elif which_model_netD == 'n_layers':
         netD = NLayerDiscriminator(input_nc, ndf, n_layers_D, norm_layer=norm_layer, use_sigmoid=use_sigmoid,
                                    gpu_ids=gpu_ids)
+    elif which_model_netD == 'SequenceDiscriminator':
+        netD = SequenceDiscriminator()
     else:
         raise NotImplementedError('Discriminator model name [%s] is not recognized' %
                                   which_model_netD)
@@ -664,14 +668,14 @@ class SequenceGenerator(nn.Module):
     outputs:
     """
 
-    def __init__(self, input_nc, output_nc, rnn_input_sie, rnn_hidden_size=300, rnn_num_layers=2,
-                 rnn_bidirectional=False, ngf=64, norm_layer=nn.BatchNorm2d, target_size=2,
+    def __init__(self, input_nc, output_nc, rnn_input_sie=48576, rnn_hidden_size=300, rnn_num_layers=2,
+                 rnn_bidirectional=False, ngf=64, norm_layer=nn.BatchNorm2d, target_size=1,
                  use_dropout=False, n_blocks=6, gpu_ids=None, padding_type='reflect'):
         assert (n_blocks >= 0)
         super(SequenceGenerator, self).__init__()
         self.input_nc = input_nc
         self.output_nc = output_nc
-        self.rnn_input_size = rnn_input_sie
+        self.rnn_input_size = 48576
         self.rnn_hidden_size = rnn_hidden_size
         self.target_size = target_size
         self.rnn_num_layers = rnn_num_layers
@@ -724,7 +728,7 @@ class SequenceGenerator(nn.Module):
         self.rnn2out = nn.Linear(self.rnn_hidden_size, self.target_size)
 
     def forward(self, inp):
-        if self.gpu_ids and isinstance(inp.data, torch.cuda.FloatTensor):
+        if self.gpu_ids and isinstance(inp, torch.cuda.FloatTensor):
             img_seq = nn.parallel.data_parallel(self.video_encoder, inp, self.gpu_ids)
             rnn_outs, _ = nn.parallel.data_parallel(self.rnn_generator, img_seq.view(1, img_seq.size()[2], -1),
                                                     self.gpu_ids)
@@ -755,7 +759,7 @@ class SequenceDiscriminator(nn.Module):
     outputs:
     """
 
-    def __init__(self, input_size, hidden_size, norm_layer=nn.BatchNorm2d,
+    def __init__(self, input_size=1, hidden_size=300, norm_layer=nn.BatchNorm2d,
                  dropout=0.5, gpu_ids=None, num_layers=2, bidirectional=True):
         super(SequenceDiscriminator, self).__init__()
         self.input_size = input_size

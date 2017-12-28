@@ -115,6 +115,35 @@ class Vid2SeqModel(BaseModel):
 
         self.loss_G.backward()
 
+
+
+
+    def pretrain_G_step(self):
+        g_loss = self.netG.batch_mse_loss(self.input_vid, self.input_seq)
+        self.optimizer_G.zero_grad()
+        g_loss.backward()
+        self.optimizer_G.step()
+        return g_loss
+
+
+    def pretrain_D_step(self):
+        label_size = list(self.input_seq.size())
+        label_size[2] = 1
+        target_real = Variable(torch.ones(label_size).resize_(label_size[0], label_size[1]))
+        target_fake = Variable(torch.zeros(label_size).resize_(label_size[0], label_size[1]))
+        self.forward()
+        d_loss = self.netD.batch_bce_loss(self.input_seq, target_real)
+        d_loss += self.netD.batch_bce_loss(self.gen_seq.detach(), target_fake)
+        self.optimizer_D.zero_grad()
+        d_loss.backward()
+        self.optimizer_D.step()
+        return d_loss
+
+
+
+
+
+
     def optimize_parameters(self):
         self.forward()
 

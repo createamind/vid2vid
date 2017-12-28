@@ -130,6 +130,53 @@ def save_videos(web_dir, visuals, vid_path, epoch):
 
 
 
+
+
+
+
+
+
+# pretrain generator
+print('='*20 + 'Pre-train Generator' + '='*20)
+for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
+    epoch_start_time = time.time()
+    epoch_iter = 0
+
+    for i, data in enumerate(dataset):
+        iter_start_time = time.time()
+        #visualizer.reset()
+        total_steps += opt.batchSize
+        epoch_iter += opt.batchSize
+        model.set_input(data)
+        g_loss = model.pretrain_G_step()
+        if total_steps % opt.print_freq == 0:
+            print("epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(epoch_iter,
+                i, g_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
+
+
+total_steps = 0
+# pre-train discriminator
+print('='*20 + 'Pre-train Discriminator' + '='*20)
+for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
+    epoch_start_time = time.time()
+    epoch_iter = 0
+
+    for i, data in enumerate(dataset):
+        iter_start_time = time.time()
+        #visualizer.reset()
+        total_steps += opt.batchSize
+        epoch_iter += opt.batchSize
+        model.set_input(data)
+        d_loss = model.pretrain_D_step()
+        if total_steps % opt.print_freq == 0:
+            print("epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(epoch_iter,
+                i, d_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
+
+
+total_steps = 0
+# adversarial training
+print('='*20 + 'Adversarial Training' + '='*20)
+
 for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
     epoch_start_time = time.time()
     epoch_iter = 0

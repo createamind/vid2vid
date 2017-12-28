@@ -114,8 +114,8 @@ class Vid2SeqModel(BaseModel):
         self.loss_G = self.loss_G_GAN + self.loss_G_L1
 
         self.loss_G.backward()
-
-
+        # return mse loss, for print
+        return self.netG.batch_mse_loss(self.input_vid, self.input_seq)
 
 
     def pretrain_G_step(self):
@@ -140,10 +140,6 @@ class Vid2SeqModel(BaseModel):
         return d_loss
 
 
-
-
-
-
     def optimize_parameters(self):
         self.forward()
 
@@ -152,8 +148,10 @@ class Vid2SeqModel(BaseModel):
         self.optimizer_D.step()
 
         self.optimizer_G.zero_grad()
-        self.backward_G()
+        g_mse_loss = self.backward_G()
         self.optimizer_G.step()
+        return g_mse_loss
+
 
     def get_current_errors(self):
         return OrderedDict([('G_GAN', self.loss_G_GAN.data[0]),

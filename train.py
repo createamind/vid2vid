@@ -150,7 +150,7 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
         model.set_input(data)
         g_loss = model.pretrain_G_step()
         if total_steps % opt.print_freq == 0:
-            print("epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(epoch_iter,
+            print("epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(epoch,
                 i, g_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
 
 
@@ -169,7 +169,7 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
         model.set_input(data)
         d_loss = model.pretrain_D_step()
         if total_steps % opt.print_freq == 0:
-            print("epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(epoch_iter,
+            print("epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(epoch,
                 i, d_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
 
 

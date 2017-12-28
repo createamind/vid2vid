@@ -61,7 +61,7 @@ class Vid2SeqModel(BaseModel):
             networks.print_network(self.netD)
         print('-----------------------------------------------')
 
-    def set_input(self, inputs, is_numpy=False):
+    def set_input(self, input, is_numpy=False):
         """
         :param is_numpy: using numpy array or not
         :param inputs: a dict contains two inputs forms with key: 'video' and 'target_seq'
@@ -69,11 +69,11 @@ class Vid2SeqModel(BaseModel):
         """
         # numpy to torch tensor
         if is_numpy:
-            self.input_vid = torch.from_numpy(inputs['video'])
+            self.input_vid = torch.from_numpy(self.input_A)
             self.input_seq = torch.from_numpy(inputs['target_seq'])
         else:
-            self.input_vid = inputs['video']
-            self.input_seq = inputs['target_seq']
+            self.input_vid = torch.from_numpy(input['A'])     torch.from_numpy(input['A' if AtoB else 'B'])
+            self.input_seq = torch.from_numpy(input["speedX"])
         # convert to cuda
         if self.gpu_ids and torch.cuda.is_available():
             self.input_vid = self.input_vid.cuda()

@@ -759,7 +759,7 @@ class SequenceDiscriminator(nn.Module):
     outputs:
     """
 
-    def __init__(self, input_size, hidden_size, norm_layer=nn.BatchNorm2d,
+    def __init__(self, input_size=1, hidden_size=300, norm_layer=nn.BatchNorm2d,
                  dropout=0.5, gpu_ids=None, num_layers=2, bidirectional=True):
         super(SequenceDiscriminator, self).__init__()
         self.input_size = input_size

@@ -144,7 +144,7 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
 
         #data = dict(data)
 
-        #print(data.shape())
+        #print(data)
 
         iter_start_time = time.time()
         #visualizer.reset()

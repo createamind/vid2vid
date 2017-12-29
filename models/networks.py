@@ -748,7 +748,8 @@ class SequenceGenerator(nn.Module):
         """
 
         loss_fn = nn.MSELoss()
-        loss = loss_fn(self.forward(inp), target)
+        self.gen_seq = self.forward(inp)
+        loss = loss_fn(self.gen_seq, target)
         return loss  # per batch
 
 
@@ -803,7 +804,7 @@ class SequenceDiscriminator(nn.Module):
             - input: batch_size x depth x 2*hidden_size
             - target: batch_size x depth (binary 1/0)
         """
-        loss_fn = nn.BCELoss()
+        loss_fn = nn.BCELoss().cuda()
         out = self.batch_classify(input)
         return loss_fn(out, target)
 

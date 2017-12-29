@@ -154,7 +154,7 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
         if total_steps % opt.print_freq == 0:
             print("epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(epoch,
                 i, g_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
-            print("target seq:\n {} \ngenerated seq: {}".format(model.input_seq, model.netG(model.input_vid)))
+            print("target seq:\n {} \ngenerated seq: {}".format(model.input_seq, model.gen_seq))
         if total_steps % opt.save_latest_freq == 0:
             print('saving the latest model (epoch %d, total_steps %d)' %
                   (epoch, total_steps))

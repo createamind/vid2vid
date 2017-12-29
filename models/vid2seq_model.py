@@ -4,7 +4,7 @@ import torch
 from torch.autograd import Variable
 from models.base_model import BaseModel
 import models.networks as networks
-
+import warnings
 
 class Vid2SeqModel(BaseModel):
     """
@@ -124,6 +124,7 @@ class Vid2SeqModel(BaseModel):
     def pretrain_G_step(self):
         #print(self.input_vid.size())
         g_loss = self.netG.batch_mse_loss(self.input_vid, self.input_seq)
+        self.gen_seq = self.netG.gen_seq
         self.optimizer_G.zero_grad()
         g_loss.backward()
         self.optimizer_G.step()
@@ -133,11 +134,17 @@ class Vid2SeqModel(BaseModel):
     def pretrain_D_step(self):
         label_size = list(self.input_seq.size())
         label_size[2] = 1
-        target_real = Variable(torch.ones(label_size).resize_(label_size[0], label_size[1]))
-        target_fake = Variable(torch.zeros(label_size).resize_(label_size[0], label_size[1]))
+        target_real = Variable(torch.ones(label_size).resize_(label_size[0], label_size[1] ))
+        target_fake = Variable(torch.zeros(label_size).resize_(label_size[0], label_size[1] ))
         self.forward()
-        d_loss = self.netD.batch_bce_loss(self.input_seq, target_real)
-        d_loss += self.netD.batch_bce_loss(self.gen_seq.detach(), target_fake)
+
+        warnings.warn("Using a target size ({}) that is different to the input size ({}) is deprecated. "
+                      "Please ensure they have the same size.".format(self.input_seq.size(), target_real.size()))
+
+
+
+        d_loss = self.netD.batch_bce_loss(self.input_seq.cuda(), target_real.cuda())
+        d_loss += self.netD.batch_bce_loss(self.gen_seq.detach().cuda(), target_fake.cuda())
         self.optimizer_D.zero_grad()
         d_loss.backward()
         self.optimizer_D.step()

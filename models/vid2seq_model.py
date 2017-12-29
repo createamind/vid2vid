@@ -70,13 +70,16 @@ class Vid2SeqModel(BaseModel):
         # numpy to torch tensor
         if is_numpy:
             self.input_vid = torch.from_numpy(self.input_A)
-            self.input_seq = torch.from_numpy(inputs['target_seq'])
+            self.input_seq = torch.from_numpy(input['target_seq'])
         else:
+            #print(input['A'].size())
             self.input_vid = Variable(torch.from_numpy(input['A'])).float()
+            #print(self.input_vid.size())
             self.input_seq = Variable(torch.from_numpy(input["speedX"])).float()
         # convert to cuda
         if self.gpu_ids and torch.cuda.is_available():
             self.input_vid = self.input_vid.cuda()
+            #print(self.input_vid.size())
             self.input_seq = self.input_seq.cuda()
 
     def forward(self):
@@ -119,6 +122,7 @@ class Vid2SeqModel(BaseModel):
 
 
     def pretrain_G_step(self):
+        #print(self.input_vid.size())
         g_loss = self.netG.batch_mse_loss(self.input_vid, self.input_seq)
         self.optimizer_G.zero_grad()
         g_loss.backward()

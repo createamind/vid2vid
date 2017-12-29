@@ -675,7 +675,7 @@ class SequenceGenerator(nn.Module):
         super(SequenceGenerator, self).__init__()
         self.input_nc = input_nc
         self.output_nc = output_nc
-        self.rnn_input_size = 48576
+        self.rnn_input_size = 48576  #194304
         self.rnn_hidden_size = rnn_hidden_size
         self.target_size = target_size
         self.rnn_num_layers = rnn_num_layers

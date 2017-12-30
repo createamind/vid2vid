@@ -145,7 +145,7 @@ class Vid2SeqModel(BaseModel):
         pred_real = self.netD_vid(real_AB)
         speed_real = self.netD_seq(self.speedX.detach())
         self.loss_D_real = self.criterionGAN(pred_real, True) + \
-                           self.criterionGAN(self.speedX, True)
+                           self.criterionGAN(speed_real, True)
 
 
         # # Fake
@@ -180,7 +180,7 @@ class Vid2SeqModel(BaseModel):
 
         # Second, G(A) = B
         self.loss_G_L1_vid = self.criterionL1(self.fake_B, self.real_B) * self.opt.lambda_A
-        self.loss_G_L1_seq = self.criterionL1(self.fake_B, self.real_B) * self.opt.lambda_A
+        self.loss_G_L1_seq = self.criterionL1(self.gen_seq, self.input_seq) * 5
         self.loss_G_L1 = self.loss_G_L1_vid +self.loss_G_L1_seq
         #action
         # self.action_loss = self.criterionL2(self.action,self.action_prediction)

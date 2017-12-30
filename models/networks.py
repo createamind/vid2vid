@@ -736,7 +736,7 @@ class SequenceGenerator(nn.Module):
     def forward(self, input):
         if self.gpu_ids and isinstance(input, torch.cuda.FloatTensor):
             midvidencoder = nn.parallel.data_parallel(self.video_encoder, input, self.gpu_ids)
-            rnn_outs, _ = nn.parallel.data_parallel(self.rnn_generator, midvidencoder.view(1, img_seq.size()[2], -1),
+            rnn_outs, _ = nn.parallel.data_parallel(self.rnn_generator, midvidencoder.view(1, midvidencoder.size()[2], -1),
                                                     self.gpu_ids)
             return  nn.parallel.data_parallel(self.video_gen, midvidencoder, self.gpu_ids) , nn.parallel.data_parallel(self.rnn2out, rnn_outs, self.gpu_ids)
 

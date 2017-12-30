@@ -16,8 +16,8 @@ class sensor_model(Pix2PixModel):
         return "sensor_model"
 
     def initialize(self, opt):
-        #if "speedX" in opt.sensor_types:
-        #    self.speedD = networks.Action_D(opt.depth)
+        if "speedX" in opt.sensor_types:
+            self.speedD = networks.Action_D(opt.depth)
 
 
         Pix2PixModel.initialize(self, opt)
@@ -41,7 +41,7 @@ class sensor_model(Pix2PixModel):
 
         self.real_B = Variable(self.input_B)
 
-        #print(". . . . . . .111111111 . . . . . . ................... . . . . . . . ............")
+        print(". . . . . . .111111111 . . . . . . ................... . . . . . . . ............")
         print(self.speedX)
         #print(". . . . . . .11122222111111 . . . . . . ................... . . . . . . . ............")
 
@@ -61,7 +61,7 @@ class sensor_model(Pix2PixModel):
         #fake_AB = torch.cat((self.real_A, self.fake_B), 1).data
         #fake_AB_ = Variable(fake_AB)
         #pred_fake = self.netD(fake_AB_.detach())
-        speed_fake = self.netD(self.speedX_pred.detach())
+        speed_fake = self.speedD(self.speedX_pred)
         # self.loss_D_fake = self.criterionGAN(pred_fake, False)+ \
         #                    self.criterionGAN(speed_fake, False) #fake speed
         self.loss_D_fake = self.criterionGAN(speed_fake, False) #fake speed
@@ -73,7 +73,8 @@ class sensor_model(Pix2PixModel):
         #pred_real = self.netD(real_AB)
         # self.loss_D_real = self.criterionGAN(pred_real, True) + \
         #                    self.criterionGAN(self.speedX, True)
-        self.loss_D_real = self.criterionGAN(self.speedX, True)
+        speed_real = self.speedD(self.speedX.detach())
+        self.loss_D_real = self.criterionGAN(speed_real, True)
         #real speed
 
 
@@ -86,7 +87,7 @@ class sensor_model(Pix2PixModel):
         # First, G(A) should fake the discriminator
         #fake_AB = torch.cat((self.real_A, self.fake_B), 1)
         #pred_fake = self.netD(fake_AB)
-        speed_fake = self.netD(self.speedX_pred)
+        speed_fake = self.speedD(self.speedX_pred)
         # self.loss_G_GAN = self.criterionGAN(pred_fake, True) + \
         #                   self.criterionGAN(speed_fake, True)
         self.loss_G_GAN = self.criterionGAN(speed_fake, True)

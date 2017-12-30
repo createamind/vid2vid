@@ -592,7 +592,6 @@ class SensorGenerator(nn.Module):
             # x=x.cuda()
             # print(x)
             # l.cuda()
-
             x = F.relu(l(x))
         return x
 
@@ -601,6 +600,8 @@ class SensorGenerator(nn.Module):
             out_size = input.size()[2]
             # input=input.cuda()
             code = self.code(input)  # .cuda()
+            code = nn.parallel.data_parallel(self.code, input, self.gpu_ids)
+            midvidencoder= code
 
             # print("code")
             # print(code)
@@ -618,7 +619,7 @@ class SensorGenerator(nn.Module):
             # nn.parallel.data_parallel(self.model, code, self.gpu_ids)
             # nn.parallel.data_parallel(self.pre_out, code.view(-1, code_size), self.gpu_ids)
 
-            return nn.parallel.data_parallel(self.model, code, self.gpu_ids), nn.parallel.data_parallel(self.pre_out,
+            return nn.parallel.data_parallel(self.model, midvidencoder, self.gpu_ids), nn.parallel.data_parallel(self.pre_out,
                                                                                                         code.view(-1,
                                                                                                                   code_size),
                                                                                                         self.gpu_ids)
@@ -707,6 +708,9 @@ class SequenceGenerator(nn.Module):
             model += [ResnetBlock_3d(ngf * mult, padding_type=padding_type, norm_layer=norm_layer,
                                      use_dropout=use_dropout, use_bias=use_bias),
                       ]
+        encoder_model=model[:]
+        model = []
+
         for i in range(n_downsampling):
             mult = 2 ** (n_downsampling - i)
             model += [nn.ConvTranspose3d(ngf * mult, int(ngf * mult / 2),
@@ -719,7 +723,9 @@ class SequenceGenerator(nn.Module):
                   nn.Conv3d(output_nc, output_nc, kernel_size=(3, 6, 6), padding=(1, 3, 3), stride=(1, 1, 1), )]
         model += [nn.Tanh()]
 
-        self.video_encoder = nn.Sequential(*model)
+        self.video_encoder = nn.Sequential(*encoder_model)
+        self.video_gen = nn.Sequential(*model)
+
 
         # RNN Generator
         self.rnn_generator = nn.LSTM(input_size=self.rnn_input_size, hidden_size=self.rnn_hidden_size,
@@ -727,14 +733,16 @@ class SequenceGenerator(nn.Module):
                                      batch_first=True)
         self.rnn2out = nn.Linear(self.rnn_hidden_size, self.target_size)
 
-    def forward(self, inp):
-        if self.gpu_ids and isinstance(inp, torch.cuda.FloatTensor):
-            img_seq = nn.parallel.data_parallel(self.video_encoder, inp, self.gpu_ids)
-            rnn_outs, _ = nn.parallel.data_parallel(self.rnn_generator, img_seq.view(1, img_seq.size()[2], -1),
+    def forward(self, input):
+        if self.gpu_ids and isinstance(input, torch.cuda.FloatTensor):
+            midvidencoder = nn.parallel.data_parallel(self.video_encoder, input, self.gpu_ids)
+            rnn_outs, _ = nn.parallel.data_parallel(self.rnn_generator, midvidencoder.view(1, img_seq.size()[2], -1),
                                                     self.gpu_ids)
-            return nn.parallel.data_parallel(self.rnn2out, rnn_outs, self.gpu_ids)
+            return  nn.parallel.data_parallel(self.video_gen, midvidencoder, self.gpu_ids) , nn.parallel.data_parallel(self.rnn2out, rnn_outs, self.gpu_ids)
+
         else:
-            img_seq = self.video_encoder(inp)
+            raise NotImplementedError('cpu  data [%s] is not complete implemented')
+            img_seq = self.video_encoder(input)
             rnn_outs, _ = self.rnn_generator(img_seq.view(1, img_seq.size()[2], -1))
             return self.rnn2out(rnn_outs)
 

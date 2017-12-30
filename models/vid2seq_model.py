@@ -16,12 +16,18 @@ class Vid2SeqModel(BaseModel):
 
     def initialize(self, opt):
         BaseModel.initialize(self, opt)
+        self.dataset_mode = opt.dataset_mode
         self.isTrain = opt.isTrain
 
         # define tensors
         # 3D tensor shape (N,Cin,Din,Hin,Win)
         # self.input_vid = self.Tensor(opt.batchSize, opt.input_nc,
         #                          opt.depth, opt.fineSize, opt.fineSize)
+        self.input_A = self.Tensor(opt.batchSize, opt.input_nc,
+                                   opt.depth, opt.fineSize, opt.fineSize)
+        self.input_B = self.Tensor(opt.batchSize, opt.output_nc,
+                                   opt.depth, opt.fineSize, opt.fineSize)
+
 
         # load/define networks
         self.netG = networks.define_G(opt.input_nc, opt.output_nc, opt.ngf,  # of gen filters in first conv layer
@@ -61,29 +67,67 @@ class Vid2SeqModel(BaseModel):
             networks.print_network(self.netD)
         print('-----------------------------------------------')
 
-    def set_input(self, input, is_numpy=False):
+    def set_input(self, input, is_numpy=Ture):
         """
         :param is_numpy: using numpy array or not
         :param inputs: a dict contains two inputs forms with key: 'video' and 'target_seq'
         :return:
         """
-        # numpy to torch tensor
-        if is_numpy:
-            self.input_vid = torch.from_numpy(self.input_A)
-            self.input_seq = torch.from_numpy(input['target_seq'])
-        else:
-            #print(input['A'].size())
-            self.input_vid = Variable(torch.from_numpy(input['A'])).float()
-            #print(self.input_vid.size())
-            self.input_seq = Variable(torch.from_numpy(input["speedX"])).float()
+        ## numpy to torch tensor
+        # input_A = input['A' if AtoB else 'B']
+        # input_B = input['B' if AtoB else 'A']
+        AtoB = self.opt.which_direction == 'AtoB'
+
+        input_A = torch.from_numpy(input['A' if AtoB else 'B'])
+        # print("======input A SIZE==== {0}".format(input_A.size()))
+        input_B = torch.from_numpy(input['B' if AtoB else 'A'])
+        self.input_A.resize_(input_A.size()).copy_(input_A)
+        self.input_B.resize_(input_B.size()).copy_(input_B)
+
+        self.input_seq = Variable(torch.from_numpy(input["speedX"])).float()
+
         # convert to cuda
         if self.gpu_ids and torch.cuda.is_available():
-            self.input_vid = self.input_vid.cuda()
-            #print(self.input_vid.size())
+            self.input_A = self.input_A.cuda()
+            self.input_B = self.input_B.cuda()
             self.input_seq = self.input_seq.cuda()
+
+        self.input_vid = self.input_A
+
+        self.image_paths = input['A_paths' if AtoB else 'B_paths']
+
+
+        # # numpy to torch tensor
+        # if is_numpy:
+        #     self.input_vid = torch.from_numpy(self.input_A)
+        #     self.input_seq = torch.from_numpy(input['target_seq'])
+        # else:
+        #     #print(input['A'].size())
+        #     self.input_vid = Variable(torch.from_numpy(input['A'])).float()
+        #     #print(self.input_vid.size())
+        #     self.input_seq = Variable(torch.from_numpy(input["speedX"])).float()
+        # # convert to cuda
+        # if self.gpu_ids and torch.cuda.is_available():
+        #     self.input_vid = self.input_vid.cuda()
+        #     #print(self.input_vid.size())
+        #     self.input_seq = self.input_seq.cuda()
 
     def forward(self):
         self.gen_seq = self.netG(self.input_vid)
+        self.real_A = Variable(self.input_A)
+        self.real_B = Variable(self.input_B)
+
+
+        self.fake_B, self.speedX_pred = self.netG(self.real_A)
+        # print("speedX_pred",self.speedX_pred.size())
+        print("...............................")
+        print(self.speedX)
+        print(self.speedX_pred)
+
+
+
+
+
 
     def backward_D(self):
         # Fake

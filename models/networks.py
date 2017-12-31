@@ -104,7 +104,7 @@ def get_scheduler(optimizer, opt):
     return scheduler
 
 
-def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropout=False, init_type='normal',
+def define_G(input_nc, output_nc, ngf, which_model_netG, rnn_input_size=48576, norm='batch', use_dropout=False, init_type='normal',
              gpu_ids=[]):
     netG = None
     use_gpu = len(gpu_ids) > 0
@@ -129,7 +129,8 @@ def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropo
         netG = SensorGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=1,
                                gpu_ids=gpu_ids)
     elif which_model_netG == 'SequenceGenerator':
-        netG = SequenceGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=1, gpu_ids=gpu_ids)
+        netG = SequenceGenerator(input_nc, output_nc, rnn_input_size, norm_layer=norm_layer, ngf=ngf,
+                                 use_dropout=use_dropout, n_blocks=1, gpu_ids=gpu_ids)
     else:
         raise NotImplementedError('Generator model name [%s] is not recognized' % which_model_netG)
     if len(gpu_ids) > 0:
@@ -368,7 +369,7 @@ class UnetSkipConnectionBlock(nn.Module):
             use_bias = norm_layer == nn.InstanceNorm3d
         if input_nc is None:
             input_nc = outer_nc
-        kw = [3, 4, 4]
+        kw = (3, 4, 4)
         s = (1, 2, 2)
         downconv = nn.Conv3d(input_nc, inner_nc, kernel_size=kw,
                              stride=s, padding=1, bias=use_bias)
@@ -378,8 +379,7 @@ class UnetSkipConnectionBlock(nn.Module):
         upnorm = norm_layer(outer_nc)
 
         if outermost:
-            upconv = nn.ConvTranspose3d(inner_nc * 2, outer_nc,
-                                        kernel_size=kw, stride=s,
+            upconv = nn.ConvTranspose3d(inner_nc * 2, outer_nc, kernel_size=kw, stride=s,
                                         padding=1)
             down = [downconv]
             up = [uprelu, upconv, nn.Tanh()]
@@ -527,12 +527,11 @@ class SensorGenerator(nn.Module):
         else:
             use_bias = norm_layer == nn.InstanceNorm3d
 
-        kw = [3, 4, 4]
+        kw = (3, 4, 4)
         s = (1, 2, 2)
 
-        model = [nn.Conv3d(input_nc, ngf, kernel_size=[3, 7, 7], padding=(1, 3, 3),
+        model = [nn.Conv3d(input_nc, ngf, kernel_size=(3, 7, 7), padding=(1, 3, 3),
                            bias=use_bias),
-
                  norm_layer(ngf),
                  nn.ReLU(True)]
 
@@ -669,14 +668,14 @@ class SequenceGenerator(nn.Module):
     outputs:
     """
 
-    def __init__(self, input_nc, output_nc, rnn_input_sie=48576, rnn_hidden_size=300, rnn_num_layers=2,
+    def __init__(self, input_nc, output_nc, rnn_input_size=48576, rnn_hidden_size=300, rnn_num_layers=2,
                  rnn_bidirectional=False, ngf=64, norm_layer=nn.BatchNorm2d, target_size=1,
                  use_dropout=False, n_blocks=6, gpu_ids=None, padding_type='reflect'):
         assert (n_blocks >= 0)
         super(SequenceGenerator, self).__init__()
         self.input_nc = input_nc
         self.output_nc = output_nc
-        self.rnn_input_size = 48576  #194304
+        self.rnn_input_size = rnn_input_size  #194304
         self.rnn_hidden_size = rnn_hidden_size
         self.target_size = target_size
         self.rnn_num_layers = rnn_num_layers
@@ -708,55 +707,62 @@ class SequenceGenerator(nn.Module):
             model += [ResnetBlock_3d(ngf * mult, padding_type=padding_type, norm_layer=norm_layer,
                                      use_dropout=use_dropout, use_bias=use_bias),
                       ]
-        encoder_model=model[:]
+        encoder_model = model[:]
         model = []
 
         for i in range(n_downsampling):
             mult = 2 ** (n_downsampling - i)
             model += [nn.ConvTranspose3d(ngf * mult, int(ngf * mult / 2),
-                                         kernel_size=(3, 3, 3), stride=(1, 1, 2),
+                                         kernel_size=(3, 3, 3), stride=(1, 2, 2),
                                          padding=(1, 1, 1),
                                          bias=use_bias),
                       norm_layer(int(ngf * mult / 2)),
                       nn.ReLU(True)]
-        model += [nn.Conv3d(ngf, output_nc, kernel_size=(3, 8, 8), padding=(1, 3, 3)),
-                  nn.Conv3d(output_nc, output_nc, kernel_size=(3, 6, 6), padding=(1, 3, 3), stride=(1, 1, 1), )]
+        model += [nn.Conv3d(ngf, output_nc, kernel_size=(3, 7, 7), padding=(1, 3, 3)),
+                  nn.Conv3d(output_nc, output_nc, kernel_size=(3, 6, 6), padding=(1, 4, 4), stride=(1, 1, 1), )]
         model += [nn.Tanh()]
 
         self.video_encoder = nn.Sequential(*encoder_model)
+        # Video Generator
         self.video_gen = nn.Sequential(*model)
 
-
-        # RNN Generator
+        # Sequence Generator
         self.rnn_generator = nn.LSTM(input_size=self.rnn_input_size, hidden_size=self.rnn_hidden_size,
                                      num_layers=self.rnn_num_layers, bidirectional=self.rnn_bidirectional,
                                      batch_first=True)
         self.rnn2out = nn.Linear(self.rnn_hidden_size, self.target_size)
 
-    def forward(self, input):
-        if self.gpu_ids and isinstance(input, torch.cuda.FloatTensor):
-            midvidencoder = nn.parallel.data_parallel(self.video_encoder, input, self.gpu_ids)
-            rnn_outs, _ = nn.parallel.data_parallel(self.rnn_generator, midvidencoder.view(1, midvidencoder.size()[2], -1),
+    def forward(self, inp):
+        input_vid = inp
+        if self.gpu_ids and isinstance(input_vid, torch.cuda.FloatTensor):
+            encoded_vid = nn.parallel.data_parallel(self.video_encoder, input_vid, self.gpu_ids)
+            self.gen_vid = nn.parallel.data_parallel(self.video_gen, encoded_vid, self.gpu_ids)
+            # concat real vid with gen vid, then feed to rnn
+            rnn_input = torch.cat([input_vid, self.gen_vid], dim=2)  # concat along depth dim
+            rnn_outs, _ = nn.parallel.data_parallel(self.rnn_generator, rnn_input.view(1, rnn_input.size()[2], -1),
                                                     self.gpu_ids)
-            return  nn.parallel.data_parallel(self.video_gen, midvidencoder, self.gpu_ids) , nn.parallel.data_parallel(self.rnn2out, rnn_outs, self.gpu_ids)
-
+            self.gen_seq = nn.parallel.data_parallel(self.rnn2out, rnn_outs, self.gpu_ids)
+            return self.gen_vid, self.gen_seq
         else:
-            raise NotImplementedError('cpu  data [%s] is not complete implemented')
-            img_seq = self.video_encoder(input)
-            rnn_outs, _ = self.rnn_generator(img_seq.view(1, img_seq.size()[2], -1))
-            return self.rnn2out(rnn_outs)
+            # raise NotImplementedError('cpu  data [%s] is not complete implemented')
+            encoded_vid = self.video_encoder(input_vid)
+            self.gen_vid = self.video_gen(encoded_vid)
+            rnn_input = torch.cat([input_vid, self.gen_vid], dim=2)  # concat along depth dim
+            rnn_outs, _ = self.rnn_generator(rnn_input.view(1, rnn_input.size()[2], -1))
+            self.gen_seq = self.rnn2out(rnn_outs)
+            return self.gen_vid, self.gen_seq
 
     def batch_mse_loss(self, inp, target):
         """
         Returns the MSE Loss for predicting target sequence.
         Inputs: input, target
-            - input: batch_size x seq_len
-            - target: batch_size x seq_len
+            - input: batch_size x depth x seq_len
+            - target: batch_size x depth x seq_len
             inp should be target with <s> (start letter) prepended
         """
 
         loss_fn = nn.MSELoss()
-        self.gen_seq = self.forward(inp)
+        self.forward(inp)
         loss = loss_fn(self.gen_seq, target)
         return loss  # per batch
 
@@ -768,7 +774,7 @@ class SequenceDiscriminator(nn.Module):
     outputs:
     """
 
-    def __init__(self, input_size=1, hidden_size=300, norm_layer=nn.BatchNorm2d,
+    def __init__(self, input_size, hidden_size=300, norm_layer=nn.BatchNorm2d,
                  dropout=0.5, gpu_ids=None, num_layers=2, bidirectional=True):
         super(SequenceDiscriminator, self).__init__()
         self.input_size = input_size

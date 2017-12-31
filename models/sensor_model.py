@@ -68,7 +68,8 @@ class sensor_model(Pix2PixModel):
         pred_real = self.netD(real_AB)
         # self.loss_D_real = self.criterionGAN(pred_real, True) + \
         #                    self.criterionGAN(self.speedX, True)
-        self.loss_D_real = self.criterionGAN(self.speedX, True)
+        #self.loss_D_real = self.criterionGAN(self.speedX, True)
+        self.loss_D_real = self.criterionGAN(pred_real, True)
         #real speed
 
 

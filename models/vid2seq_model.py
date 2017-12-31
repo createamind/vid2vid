@@ -99,13 +99,13 @@ class Vid2SeqModel(BaseModel):
         # speedX_A = torch.from_numpy(input["speedX"][:self.opt.depth])
         # speedX_B = torch.from_numpy(input["speedX"][self.opt.depth:])
 
-        # self.input_A.resize_(input_A.size()).copy_(input_A)
-        # self.input_B.resize_(input_B.size()).copy_(input_B)
-        # self.speedX.resize_(speedX.size()).copy_(speedX)
+        self.input_A.resize_(input_A.size()).copy_(input_A)
+        self.input_B.resize_(input_B.size()).copy_(input_B)
+        self.speedX.resize_(speedX.size()).copy_(speedX)
 
-        self.input_A = Variable(input_A)
-        self.input_B = Variable(input_B)
-        self.speedX = Variable(speedX)
+        # self.input_A = Variable(input_A)
+        # self.input_B = Variable(input_B)
+        # self.speedX = Variable(speedX)
 
         # convert to cuda
         if self.gpu_ids and torch.cuda.is_available():
@@ -133,13 +133,13 @@ class Vid2SeqModel(BaseModel):
         #     self.input_seq = self.input_seq.cuda()
 
     def forward(self):
-        # self.real_A = Variable(self.input_A)
-        # self.real_B = Variable(self.input_B)
-        # self.real_speedX = Variable(self.speedX)
+        self.real_A = Variable(self.input_A)
+        self.real_B = Variable(self.input_B)
+        self.real_speedX = Variable(self.speedX)
 
-        self.real_A = self.input_A
-        self.real_B = self.input_B
-        self.real_speedX = self.speedX
+        # self.real_A = self.input_A
+        # self.real_B = self.input_B
+        # self.real_speedX = self.speedX
 
         self.fake_B, self.speedX_pred = self.netG(self.real_A)
 

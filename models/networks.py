@@ -104,7 +104,7 @@ def get_scheduler(optimizer, opt):
     return scheduler
 
 
-def define_G(input_nc, output_nc, ngf, which_model_netG, rnn_input_size=48576, norm='batch', use_dropout=False, init_type='normal',
+def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropout=False, init_type='normal',
              gpu_ids=[]):
     netG = None
     use_gpu = len(gpu_ids) > 0
@@ -129,7 +129,7 @@ def define_G(input_nc, output_nc, ngf, which_model_netG, rnn_input_size=48576, n
         netG = SensorGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=1,
                                gpu_ids=gpu_ids)
     elif which_model_netG == 'SequenceGenerator':
-        netG = SequenceGenerator(input_nc, output_nc, rnn_input_size, norm_layer=norm_layer, ngf=ngf,
+        netG = SequenceGenerator(input_nc, output_nc, rnn_input_size=48576, norm_layer=norm_layer, ngf=ngf,
                                  use_dropout=use_dropout, n_blocks=1, gpu_ids=gpu_ids)
     else:
         raise NotImplementedError('Generator model name [%s] is not recognized' % which_model_netG)
@@ -139,8 +139,8 @@ def define_G(input_nc, output_nc, ngf, which_model_netG, rnn_input_size=48576, n
     return netG
 
 
-def define_D(input_nc, ndf, which_model_netD,
-             n_layers_D=3, norm='batch', use_sigmoid=False, init_type='normal', gpu_ids=[]):
+def define_D(input_nc, ndf, which_model_netD, n_layers_D=3, norm='batch', use_sigmoid=False,
+             init_type='normal', gpu_ids=[]):
     netD = None
     use_gpu = len(gpu_ids) > 0
     norm_layer = get_norm_layer(norm_type=norm)

@@ -30,7 +30,7 @@ class TrainOptions(BaseOptions):
         self.parser.add_argument('--load_video', type=int, default=0, help='load video = 1 | load image = 0')
         self.parser.add_argument('--data_dir', type=str, default='/data/dataset/depthdata/vkitti_1.3.1_rgb/**/**/',
                                  help='video or images data repository, example: virtualkitti dataset = /data/dataset/depthdata/vkitti_1.3.1_rgb/**/**/ | babayCrawlling dataset: /data/dataset/UCF/v_BabyCrawling**.avi')
-        self.parser.add_argument('--depth', type=int, default=75, help='3D Video frames length')
+        self.parser.add_argument('--depth', type=int, default=75, help='3D Video frames length for both A and B')
         self.parser.add_argument('--skip', type=int, default=1, help='skip how many frames to catch data')
         self.parser.add_argument('--overlap', type=int, default=75, help='how many frames B will have as same as A')
 

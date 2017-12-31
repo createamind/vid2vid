@@ -4,6 +4,7 @@ from models.vid2seq_model import Vid2SeqModel
 from torch.optim import lr_scheduler
 from torch.autograd import Variable
 from options.train_options import TrainOptions
+from models.base_model import BaseModel
 
 generator = networks.SequenceGenerator(input_nc=3, output_nc=3, rnn_input_size=3072)
 # batch_size x channels x depth x height x width
@@ -32,6 +33,10 @@ print('d_loss: ', d_loss)
 
 print('=' * 10, "Test GAN Model", '=' * 10)
 model = Vid2SeqModel()
+model.input_A = torch.Tensor(1, 3, 10, 32, 32)
+model.input_B = torch.Tensor(1, 3, 10, 32, 32)
+model.speedX = torch.Tensor(1, 20, 1)
+
 model.netG = generator
 model.netD_seq = discriminator
 model.netD_vid = networks.NLayerDiscriminator(input_nc=6)
@@ -64,37 +69,37 @@ for optimizer in model.optimizers:
 epoch = 1
 _inputs = {'A': input_vid.data.numpy(), 'B': input_vid.data.numpy(), 'speedX': input_seq.data.numpy()}
 
-# pre-train generator
-print('='*20 + 'Pre-train Generator' + '='*20)
-for i in range(epoch):
-    print('pre-train generator, epoch: ', i)
-    # print('inputs: {}'.format(_inputs))
-    model.set_input(_inputs)
-    g_loss = model.netG.batch_mse_loss(model.input_A, model.speedX)
-    model.optimizer_G.zero_grad()
-    g_loss.backward()
-    model.optimizer_G.step()
-    print('current error: ', g_loss.data[0])
-
-# pre-train discriminator TODO should not train D like this, just for test sake
-print('='*20 + 'Pre-train Discriminator' + '='*20)
-for i in range(epoch):  # stronger discriminator
-    print('pre-train discriminator, epoch: ', i)
-    # print('input vid: {}, input seq: {}'.format(_inputs['A'].size(), _inputs['B'].size()))
-    model.set_input(_inputs)
-    label_size = list(model.speedX.size())
-    label_size[2] = 1
-    target_real = Variable(torch.ones(label_size).resize_(label_size[0], label_size[1]))
-    target_fake = Variable(torch.zeros(label_size).resize_(label_size[0], label_size[1]))
-    model.forward()
-    fake = torch.cat([model.speedX, model.speedX_pred], 2)
-    real = torch.cat([model.speedX, model.speedX], 2)
-    d_loss = model.netD_seq.batch_bce_loss(real, target_real)
-    d_loss += model.netD_seq.batch_bce_loss(fake, target_fake)
-    model.optimizer_D_seq.zero_grad()
-    d_loss.backward()
-    model.optimizer_D_seq.step()
-    print('current error: ', d_loss.data[0])
+# # pre-train generator
+# print('='*20 + 'Pre-train Generator' + '='*20)
+# for i in range(epoch):
+#     print('pre-train generator, epoch: ', i)
+#     # print('inputs: {}'.format(_inputs))
+#     model.set_input(_inputs)
+#     g_loss = model.netG.batch_mse_loss(model.input_A, model.speedX)
+#     model.optimizer_G.zero_grad()
+#     g_loss.backward()
+#     model.optimizer_G.step()
+#     print('current error: ', g_loss.data[0])
+#
+# # pre-train discriminator TODO should not train D like this, just for test sake
+# print('='*20 + 'Pre-train Discriminator' + '='*20)
+# for i in range(epoch):  # stronger discriminator
+#     print('pre-train discriminator, epoch: ', i)
+#     # print('input vid: {}, input seq: {}'.format(_inputs['A'].size(), _inputs['B'].size()))
+#     model.set_input(_inputs)
+#     label_size = list(model.speedX.size())
+#     label_size[2] = 1
+#     target_real = Variable(torch.ones(label_size).resize_(label_size[0], label_size[1]))
+#     target_fake = Variable(torch.zeros(label_size).resize_(label_size[0], label_size[1]))
+#     model.forward()
+#     fake = torch.cat([model.speedX, model.speedX_pred], 2)
+#     real = torch.cat([model.speedX, model.speedX], 2)
+#     d_loss = model.netD_seq.batch_bce_loss(real, target_real)
+#     d_loss += model.netD_seq.batch_bce_loss(fake, target_fake)
+#     model.optimizer_D_seq.zero_grad()
+#     d_loss.backward()
+#     model.optimizer_D_seq.step()
+#     print('current error: ', d_loss.data[0])
 
 # adversarial training
 print('='*20 + 'Adversarial Training' + '='*20)

@@ -154,7 +154,7 @@ def define_D(input_nc, ndf, which_model_netD, n_layers_D=3, norm='batch', use_si
         netD = NLayerDiscriminator(input_nc, ndf, n_layers_D, norm_layer=norm_layer, use_sigmoid=use_sigmoid,
                                    gpu_ids=gpu_ids)
     elif which_model_netD == 'SequenceDiscriminator':
-        netD = SequenceDiscriminator()
+        netD = SequenceDiscriminator(input_size=1, gpu_ids=gpu_ids)
     else:
         raise NotImplementedError('Discriminator model name [%s] is not recognized' %
                                   which_model_netD)
@@ -738,7 +738,7 @@ class SequenceGenerator(nn.Module):
             encoded_vid = nn.parallel.data_parallel(self.video_encoder, input_vid, self.gpu_ids)
             self.gen_vid = nn.parallel.data_parallel(self.video_gen, encoded_vid, self.gpu_ids)
             # concat real vid with gen vid, then feed to rnn
-            rnn_input = torch.cat([input_vid, self.gen_vid], dim=2)  # concat along depth dim
+            rnn_input = torch.cat([input_vid, self.gen_vid], dim=1)  # concat along channel dim
             rnn_outs, _ = nn.parallel.data_parallel(self.rnn_generator, rnn_input.view(1, rnn_input.size()[2], -1),
                                                     self.gpu_ids)
             self.gen_seq = nn.parallel.data_parallel(self.rnn2out, rnn_outs, self.gpu_ids)
@@ -747,7 +747,7 @@ class SequenceGenerator(nn.Module):
             # raise NotImplementedError('cpu  data [%s] is not complete implemented')
             encoded_vid = self.video_encoder(input_vid)
             self.gen_vid = self.video_gen(encoded_vid)
-            rnn_input = torch.cat([input_vid, self.gen_vid], dim=2)  # concat along depth dim
+            rnn_input = torch.cat([input_vid, self.gen_vid], dim=1)  # concat along channel dim
             rnn_outs, _ = self.rnn_generator(rnn_input.view(1, rnn_input.size()[2], -1))
             self.gen_seq = self.rnn2out(rnn_outs)
             return self.gen_vid, self.gen_seq
@@ -774,7 +774,7 @@ class SequenceDiscriminator(nn.Module):
     outputs:
     """
 
-    def __init__(self, input_size, hidden_size=300, norm_layer=nn.BatchNorm2d,
+    def __init__(self, input_size, hidden_size=200, norm_layer=nn.BatchNorm2d,
                  dropout=0.5, gpu_ids=None, num_layers=2, bidirectional=True):
         super(SequenceDiscriminator, self).__init__()
         self.input_size = input_size

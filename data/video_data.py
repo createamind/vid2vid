@@ -15,6 +15,8 @@ from data.server import client
 def make_dataset(data_path):
     file_list = glob.glob(os.path.join(data_path,'*.npy'))
     return file_list
+
+
 def get_sensor(A,sensor_type = ["focus","angle"]):
     if sensor_type is not list:
         sensor_type = sensor_type.split(',')
@@ -60,7 +62,7 @@ class VideoDataset(BaseDataset):
         filename, ABS= next(self.c)
         AB = ABS[0]
         #print("AB",AB.shape)
-        if  self.opt.sensor_types:
+        if self.opt.sensor_types:
             S = ABS[1]
 
 

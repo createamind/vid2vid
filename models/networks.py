@@ -129,7 +129,7 @@ def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropo
         netG = SensorGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=1,
                                gpu_ids=gpu_ids)
     elif which_model_netG == 'SequenceGenerator':
-        netG = SequenceGenerator(input_nc, output_nc, rnn_input_size=48576, norm_layer=norm_layer, ngf=ngf,
+        netG = SequenceGenerator(input_nc, output_nc, rnn_input_size=196608, norm_layer=norm_layer, ngf=ngf,
                                  use_dropout=use_dropout, n_blocks=1, gpu_ids=gpu_ids)
     else:
         raise NotImplementedError('Generator model name [%s] is not recognized' % which_model_netG)
@@ -154,7 +154,7 @@ def define_D(input_nc, ndf, which_model_netD, n_layers_D=3, norm='batch', use_si
         netD = NLayerDiscriminator(input_nc, ndf, n_layers_D, norm_layer=norm_layer, use_sigmoid=use_sigmoid,
                                    gpu_ids=gpu_ids)
     elif which_model_netD == 'SequenceDiscriminator':
-        netD = SequenceDiscriminator()
+        netD = SequenceDiscriminator(input_size=1, gpu_ids=gpu_ids)
     else:
         raise NotImplementedError('Discriminator model name [%s] is not recognized' %
                                   which_model_netD)
@@ -668,14 +668,14 @@ class SequenceGenerator(nn.Module):
     outputs:
     """
 
-    def __init__(self, input_nc, output_nc, rnn_input_size=48576, rnn_hidden_size=300, rnn_num_layers=2,
+    def __init__(self, input_nc, output_nc, rnn_input_size=48576, rnn_hidden_size=80, rnn_num_layers=3,
                  rnn_bidirectional=False, ngf=64, norm_layer=nn.BatchNorm2d, target_size=1,
-                 use_dropout=False, n_blocks=6, gpu_ids=None, padding_type='reflect'):
+                 use_dropout=False, n_blocks=1, gpu_ids=None, padding_type='reflect'):
         assert (n_blocks >= 0)
         super(SequenceGenerator, self).__init__()
         self.input_nc = input_nc
         self.output_nc = output_nc
-        self.rnn_input_size = rnn_input_size  #194304
+        self.rnn_input_size = rnn_input_size  #194304  196608
         self.rnn_hidden_size = rnn_hidden_size
         self.target_size = target_size
         self.rnn_num_layers = rnn_num_layers
@@ -734,23 +734,26 @@ class SequenceGenerator(nn.Module):
 
     def forward(self, inp):
         input_vid = inp
-        if self.gpu_ids and isinstance(input_vid, torch.cuda.FloatTensor):
-            encoded_vid = nn.parallel.data_parallel(self.video_encoder, input_vid, self.gpu_ids)
-            self.gen_vid = nn.parallel.data_parallel(self.video_gen, encoded_vid, self.gpu_ids)
-            # concat real vid with gen vid, then feed to rnn
-            rnn_input = torch.cat([input_vid, self.gen_vid], dim=2)  # concat along depth dim
-            rnn_outs, _ = nn.parallel.data_parallel(self.rnn_generator, rnn_input.view(1, rnn_input.size()[2], -1),
+        # print(input_vid)
+        # if self.gpu_ids and isinstance(input_vid, torch.cuda.FloatTensor):
+        encoded_vid = nn.parallel.data_parallel(self.video_encoder, input_vid, self.gpu_ids)
+        self.gen_vid = nn.parallel.data_parallel(self.video_gen, encoded_vid, self.gpu_ids)
+        # concat real vid with gen vid, then feed to rnn
+        #rnn_input = torch.cat([input_vid, self.gen_vid], dim=1)  # concat along channel dim
+
+            ##?? input to rnn use input_A or encoded_vid????
+        rnn_outs, _ = nn.parallel.data_parallel(self.rnn_generator, self.gen_vid.view(1, self.gen_vid.size()[2], -1),
                                                     self.gpu_ids)
-            self.gen_seq = nn.parallel.data_parallel(self.rnn2out, rnn_outs, self.gpu_ids)
-            return self.gen_vid, self.gen_seq
-        else:
-            # raise NotImplementedError('cpu  data [%s] is not complete implemented')
-            encoded_vid = self.video_encoder(input_vid)
-            self.gen_vid = self.video_gen(encoded_vid)
-            rnn_input = torch.cat([input_vid, self.gen_vid], dim=2)  # concat along depth dim
-            rnn_outs, _ = self.rnn_generator(rnn_input.view(1, rnn_input.size()[2], -1))
-            self.gen_seq = self.rnn2out(rnn_outs)
-            return self.gen_vid, self.gen_seq
+        self.gen_seq = nn.parallel.data_parallel(self.rnn2out, rnn_outs, self.gpu_ids)
+        return self.gen_vid, self.gen_seq
+        # else:
+        #     raise NotImplementedError('cpu  data [%s] is not complete implemented')
+        #     encoded_vid = self.video_encoder(input_vid)
+        #     self.gen_vid = self.video_gen(encoded_vid)
+        #     rnn_input = torch.cat([input_vid, self.gen_vid], dim=1)  # concat along channel dim
+        #     rnn_outs, _ = self.rnn_generator(rnn_input.view(1, rnn_input.size()[2], -1))
+        #     self.gen_seq = self.rnn2out(rnn_outs)
+        #     return self.gen_vid, self.gen_seq
 
     def batch_mse_loss(self, inp, target):
         """
@@ -774,7 +777,7 @@ class SequenceDiscriminator(nn.Module):
     outputs:
     """
 
-    def __init__(self, input_size, hidden_size=300, norm_layer=nn.BatchNorm2d,
+    def __init__(self, input_size, hidden_size=200, norm_layer=nn.BatchNorm2d,
                  dropout=0.5, gpu_ids=None, num_layers=2, bidirectional=True):
         super(SequenceDiscriminator, self).__init__()
         self.input_size = input_size

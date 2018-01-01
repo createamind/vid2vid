@@ -199,7 +199,8 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
 
         # data = dict(data)
 
-        # print(data)
+        # print(data['A'].shape)
+        # print(data['speedX'].shape)
 
         iter_start_time = time.time()
         # visualizer.reset()
@@ -207,7 +208,7 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
         epoch_iter += opt.batchSize
         model.set_input(data)
         g_mse_loss = model.optimize_parameters()
-        '''
+
         if total_steps % opt.display_freq == 0:
             save_result = total_steps % opt.update_html_freq == 0
 
@@ -218,14 +219,14 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
             # print(visuals)
             print('process video... %s,progress %d' % (vid_path, i) )
             save_videos(web_dir, visuals, vid_path, epoch)
-        '''
+
         if total_steps % opt.print_freq == 0:
             errors = model.get_current_errors()
             t = (time.time() - iter_start_time) / opt.batchSize
             print("epoch: {}, iter: {}, g-mse-loss: {}, time: {} seconds/batch".format(
                 epoch, i, g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
             print(model.get_current_errors())
-            print("target seq:\n {} \ngenerated seq: {}".format(model.speedX, model.speedX_pred))
+            print("target seq:\n {} \ngenerated seq: {}".format(model.speedX_A, model.speedX_A_pred))
             # visualizer.print_current_errors(epoch, epoch_iter, errors, t)
             # if opt.display_id > 0:
             # visualizer.plot_current_errors(epoch, float(epoch_iter)/dataset_size, opt, errors)

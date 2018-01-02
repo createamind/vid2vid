@@ -154,7 +154,7 @@ def define_D(input_nc, ndf, which_model_netD, n_layers_D=3, norm='batch', use_si
         netD = NLayerDiscriminator(input_nc, ndf, n_layers_D, norm_layer=norm_layer, use_sigmoid=use_sigmoid,
                                    gpu_ids=gpu_ids)
     elif which_model_netD == 'SequenceDiscriminator':
-        netD = SequenceDiscriminator(input_size=1, gpu_ids=gpu_ids)
+        netD = SequenceDiscriminator(input_size=2, gpu_ids=gpu_ids)
     else:
         raise NotImplementedError('Discriminator model name [%s] is not recognized' %
                                   which_model_netD)
@@ -669,7 +669,7 @@ class SequenceGenerator(nn.Module):
     """
 
     def __init__(self, input_nc, output_nc, rnn_input_size=48576, rnn_hidden_size=80, rnn_num_layers=3,
-                 rnn_bidirectional=False, ngf=64, norm_layer=nn.BatchNorm2d, target_size=1,
+                 rnn_bidirectional=False, ngf=64, norm_layer=nn.BatchNorm2d, target_size=2,
                  use_dropout=False, n_blocks=1, gpu_ids=None, padding_type='reflect'):
         assert (n_blocks >= 0)
         super(SequenceGenerator, self).__init__()
@@ -777,7 +777,7 @@ class SequenceDiscriminator(nn.Module):
     outputs:
     """
 
-    def __init__(self, input_size, hidden_size=200, norm_layer=nn.BatchNorm2d,
+    def __init__(self, input_size=2, hidden_size=200, norm_layer=nn.BatchNorm2d,
                  dropout=0.5, gpu_ids=None, num_layers=2, bidirectional=True):
         super(SequenceDiscriminator, self).__init__()
         self.input_size = input_size

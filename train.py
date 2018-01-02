@@ -206,7 +206,7 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
         # visualizer.reset()
         total_steps += opt.batchSize
         epoch_iter += opt.batchSize
-        model.set_input(data)
+        model.set_input(data,opt)
         g_mse_loss = model.optimize_parameters()
 
         if total_steps % opt.display_freq == 0:
@@ -226,7 +226,7 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
             print("epoch: {}, iter: {}, g-mse-loss: {}, time: {} seconds/batch".format(
                 epoch, i, g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
             print(model.get_current_errors())
-            print("target seq:\n {} \ngenerated seq: {}".format(model.speedX_B, model.speedX_B_pred))
+            print("seqA:\n {}target seq:\n {} \ngenerated seq: {}".format(model.action_A,model.action_B, model.action_B_pred))
             # visualizer.print_current_errors(epoch, epoch_iter, errors, t)
             # if opt.display_id > 0:
             # visualizer.plot_current_errors(epoch, float(epoch_iter)/dataset_size, opt, errors)

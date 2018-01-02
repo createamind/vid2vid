@@ -79,7 +79,7 @@ class VideoDataset(BaseDataset):
         # print("====== load B size ==== {0}".format(B.shape))
         # return {'A': A, 'B': B,"speedX":sensor_data.speedX,
         #         'A_paths': AB_path, 'B_paths': AB_path}
-        return {'A': A, 'B': B, "speedX": sensor_data.speedX,"action":sensor_data.action,
+        return {'A': A, 'B': B, "speedX": sensor_data.speedX,"action":sensor_data.action,"angle":sensor_data.angle,
                 'A_paths': AB_path, 'B_paths': AB_path}
 
     def __len__(self):

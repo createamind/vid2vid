@@ -199,7 +199,7 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
 
         # data = dict(data)
 
-        # print(data['A'].shape)
+        #print(data)
         # print(data['speedX'].shape)
 
         iter_start_time = time.time()

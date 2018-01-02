@@ -140,7 +140,7 @@ def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropo
 
 
 def define_D(input_nc, ndf, which_model_netD, n_layers_D=3, norm='batch', use_sigmoid=False,
-             init_type='normal', gpu_ids=[]):
+             sequence_dim=None, sequence_depth=None, init_type='normal', gpu_ids=[]):
     netD = None
     use_gpu = len(gpu_ids) > 0
     norm_layer = get_norm_layer(norm_type=norm)
@@ -155,6 +155,10 @@ def define_D(input_nc, ndf, which_model_netD, n_layers_D=3, norm='batch', use_si
                                    gpu_ids=gpu_ids)
     elif which_model_netD == 'SequenceDiscriminator':
         netD = SequenceDiscriminator(input_size=1, gpu_ids=gpu_ids)
+    elif which_model_netD == 'ConvSequenceDiscriminator':
+        if sequence_dim is None or sequence_depth is None:
+            raise ValueError('Specify sequence_dim and sequence_depth when use conv seq discriminator.')
+        netD = ConvSequenceDiscriminator(input_dim=sequence_dim, input_depth=sequence_depth)
     else:
         raise NotImplementedError('Discriminator model name [%s] is not recognized' %
                                   which_model_netD)
@@ -600,7 +604,7 @@ class SensorGenerator(nn.Module):
             # input=input.cuda()
             code = self.code(input)  # .cuda()
             code = nn.parallel.data_parallel(self.code, input, self.gpu_ids)
-            midvidencoder= code
+            midvidencoder = code
 
             # print("code")
             # print(code)
@@ -618,10 +622,11 @@ class SensorGenerator(nn.Module):
             # nn.parallel.data_parallel(self.model, code, self.gpu_ids)
             # nn.parallel.data_parallel(self.pre_out, code.view(-1, code_size), self.gpu_ids)
 
-            return nn.parallel.data_parallel(self.model, midvidencoder, self.gpu_ids), nn.parallel.data_parallel(self.pre_out,
-                                                                                                        code.view(-1,
-                                                                                                                  code_size),
-                                                                                                        self.gpu_ids)
+            return nn.parallel.data_parallel(self.model, midvidencoder, self.gpu_ids), nn.parallel.data_parallel(
+                self.pre_out,
+                code.view(-1,
+                          code_size),
+                self.gpu_ids)
         else:
             out_size = input.size()[2]
             code = self.code(input)
@@ -668,21 +673,20 @@ class SequenceGenerator(nn.Module):
     outputs:
     """
 
-    def __init__(self, input_nc, output_nc,num_downs=8, rnn_input_size=48576, rnn_hidden_size=80, rnn_num_layers=3,
+    def __init__(self, input_nc, output_nc, num_downs=8, rnn_input_size=48576, rnn_hidden_size=80, rnn_num_layers=3,
                  rnn_bidirectional=False, ngf=64, norm_layer=nn.BatchNorm2d, target_size=1,
                  use_dropout=False, n_blocks=1, gpu_ids=None, padding_type='reflect'):
         assert (n_blocks >= 0)
         super(SequenceGenerator, self).__init__()
         self.input_nc = input_nc
         self.output_nc = output_nc
-        self.rnn_input_size = rnn_input_size  #194304  196608   #之前这里是  48576 不知道哪里调整后这里变大了很多。rnn参数修改后还是大5倍
+        self.rnn_input_size = rnn_input_size  # 194304  196608   #之前这里是  48576 不知道哪里调整后这里变大了很多。rnn参数修改后还是大5倍
         self.rnn_hidden_size = rnn_hidden_size
         self.target_size = target_size
         self.rnn_num_layers = rnn_num_layers
         self.rnn_bidirectional = rnn_bidirectional
         self.ngf = ngf
         self.gpu_ids = gpu_ids
-
 
         unet_block = UnetSkipConnectionBlock(ngf * 8, ngf * 8, input_nc=None, submodule=None, norm_layer=norm_layer,
                                              innermost=True)
@@ -701,7 +705,7 @@ class SequenceGenerator(nn.Module):
 
         self.video_gen = unet_block
         # Video Generator
-        #self.video_gen = nn.Sequential(*model)
+        # self.video_gen = nn.Sequential(*model)
 
         # Sequence Generator
         self.rnn_generator = nn.LSTM(input_size=self.rnn_input_size, hidden_size=self.rnn_hidden_size,
@@ -713,14 +717,14 @@ class SequenceGenerator(nn.Module):
         input_vid = inp
         # print(input_vid)
         # if self.gpu_ids and isinstance(input_vid, torch.cuda.FloatTensor):
-        #encoded_vid = nn.parallel.data_parallel(self.video_encoder, input_vid, self.gpu_ids)
+        # encoded_vid = nn.parallel.data_parallel(self.video_encoder, input_vid, self.gpu_ids)
         self.gen_vid = nn.parallel.data_parallel(self.video_gen, input_vid, self.gpu_ids)
         # concat real vid with gen vid, then feed to rnn
-        #rnn_input = torch.cat([input_vid, self.gen_vid], dim=1)  # concat along channel dim
+        # rnn_input = torch.cat([input_vid, self.gen_vid], dim=1)  # concat along channel dim
 
-            ##?? input to rnn use input_A or encoded_vid????
+        ##?? input to rnn use input_A or encoded_vid????
         rnn_outs, _ = nn.parallel.data_parallel(self.rnn_generator, self.gen_vid.view(1, self.gen_vid.size()[2], -1),
-                                                    self.gpu_ids)
+                                                self.gpu_ids)
         self.gen_seq = nn.parallel.data_parallel(self.rnn2out, rnn_outs, self.gpu_ids)
         return self.gen_vid, self.gen_seq
         # else:
@@ -802,3 +806,53 @@ class SequenceDiscriminator(nn.Module):
         out = self.batch_classify(input)
         return loss_fn(out, target)
 
+
+class ConvSequenceDiscriminator(nn.Module):
+    """
+    Use a CNN as a discriminator for sequence
+    inputs: target sequential sensor data
+    outputs: prob of being true (0, 1)
+    """
+
+    def __init__(self, input_depth, input_dim, kernel_size=2, norm_layer=nn.BatchNorm2d,
+                 use_dropout=False, gpu_ids=None):
+        super(ConvSequenceDiscriminator, self).__init__()
+        self.norm_layer = norm_layer
+        self.use_dropout = use_dropout
+        self.gpu_ids = gpu_ids
+
+        conv_module = [nn.Conv2d(in_channels=1, out_channels=1, kernel_size=(kernel_size, input_dim)),
+                       norm_layer(1),
+                       nn.ReLU()]
+        self.conv_module = nn.Sequential(*conv_module)
+
+        # reshape and feed to fcn
+        output_module = [nn.Linear((input_depth-1) * input_dim, 100)]
+        output_module += [nn.ReLU()]
+        if self.use_dropout:
+            output_module += [nn.Dropout(p=0.6)]
+        output_module += [nn.Linear(100, 1)]
+        output_module += [nn.Sigmoid()]
+        self.output_module = nn.Sequential(*output_module)
+
+    def forward(self, inp):
+        """
+        :param inp: sensor sequence data with shape (batch, depth, dim)
+        :return:
+        """
+        if self.gpu_ids and isinstance(inp.data, torch.cuda.FloatTensor):
+            out = nn.parallel.data_parallel(self.conv_module,
+                                            inp.view(inp.size()[0], 1, inp.size()[1], inp.size()[2]),
+                                            self.gpu_ids)
+            return nn.parallel.data_parallel(self.output_module, out.view(out.size()[0], -1), self.gpu_ids)
+        else:
+            out = self.conv_module(inp.view(inp.size()[0], 1, inp.size()[1], inp.size()[2]))
+            return self.output_module(out.view(out.size()[0], -1))
+    pass
+
+
+# if __name__ == '__main__':
+#     conv_d = ConvSequenceDiscriminator(input_depth=10, input_dim=1)
+#     a = Variable(torch.randn(1, 10, 1))
+#     out = conv_d(a)
+#     print(out)

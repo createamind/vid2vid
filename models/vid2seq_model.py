@@ -101,8 +101,8 @@ class Vid2SeqModel(BaseModel):
         # print("======input A SIZE==== {0}".format(input_A.size()))
         input_B = torch.from_numpy(inputs['B' if AtoB else 'A']).float()
         # speedX = torch.from_numpy(inputs["speedX"])  # with the length lX = lA + lB
-        speedX_A = torch.from_numpy(np.split(inputs["speedX"], 2, axis=1)[0]).float()
-        speedX_B = torch.from_numpy(np.split(inputs["speedX"], 2, axis=1)[0]).float()
+        speedX_A = torch.from_numpy(np.split(inputs["angle"], 2, axis=1)[0]).float()
+        speedX_B = torch.from_numpy(np.split(inputs["angle"], 2, axis=1)[1]).float()
         # print('*' * 20 + ' set inputs, shapes:')
         # print('speedX_A', speedX_A.size())
         # print('speedX_B', speedX_B.size())
@@ -130,7 +130,11 @@ class Vid2SeqModel(BaseModel):
 
         self.image_paths = inputs['A_paths' if AtoB else 'B_paths']
         self.real_A = self.input_A
-        self.real_B = self.input_B 
+        self.real_B = self.input_B
+
+        #print(inputs["angle"])
+        #print(speedX_A)
+
         #self.speedX_B = Variable(self.speedX_B)
         # # numpy to torch tensor
         # if is_numpy:
@@ -237,7 +241,7 @@ class Vid2SeqModel(BaseModel):
         #
         # self.loss_G.backward()
         # return mse loss, for print
-        return self.netG.batch_mse_loss(self.input_A, self.speedX_A)
+        return self.netG.batch_mse_loss(self.input_A, self.speedX_B)
 
     def pretrain_G_step(self):
         # print(self.input_vid.size())

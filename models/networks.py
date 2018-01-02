@@ -668,7 +668,7 @@ class SequenceGenerator(nn.Module):
     outputs:
     """
 
-    def __init__(self, input_nc, output_nc, rnn_input_size=48576, rnn_hidden_size=80, rnn_num_layers=3,
+    def __init__(self, input_nc, output_nc,num_downs=8, rnn_input_size=48576, rnn_hidden_size=80, rnn_num_layers=3,
                  rnn_bidirectional=False, ngf=64, norm_layer=nn.BatchNorm2d, target_size=1,
                  use_dropout=False, n_blocks=1, gpu_ids=None, padding_type='reflect'):
         assert (n_blocks >= 0)
@@ -682,49 +682,26 @@ class SequenceGenerator(nn.Module):
         self.rnn_bidirectional = rnn_bidirectional
         self.ngf = ngf
         self.gpu_ids = gpu_ids
-        if type(norm_layer) == functools.partial:
-            use_bias = norm_layer.func == nn.InstanceNorm3d
-        else:
-            use_bias = norm_layer == nn.InstanceNorm3d
 
-        model = [nn.Conv3d(input_nc, ngf, kernel_size=(3, 7, 7), padding=(1, 3, 3),
-                           bias=use_bias),
 
-                 norm_layer(ngf),
-                 nn.ReLU(True)]
+        unet_block = UnetSkipConnectionBlock(ngf * 8, ngf * 8, input_nc=None, submodule=None, norm_layer=norm_layer,
+                                             innermost=True)
+        for i in range(num_downs - 5):
+            unet_block = UnetSkipConnectionBlock(ngf * 8, ngf * 8, input_nc=None, submodule=unet_block,
+                                                 norm_layer=norm_layer, use_dropout=use_dropout)
+        unet_block = UnetSkipConnectionBlock(ngf * 4, ngf * 8, input_nc=None, submodule=unet_block,
+                                             norm_layer=norm_layer)
+        unet_block = UnetSkipConnectionBlock(ngf * 2, ngf * 4, input_nc=None, submodule=unet_block,
+                                             norm_layer=norm_layer)
+        unet_block = UnetSkipConnectionBlock(ngf, ngf * 2, input_nc=None, submodule=unet_block,
+                                             norm_layer=norm_layer)
+        unet_block = UnetSkipConnectionBlock(output_nc, ngf, input_nc=input_nc, submodule=unet_block,
+                                             outermost=True,
+                                             norm_layer=norm_layer)
 
-        n_downsampling = 2
-        for i in range(n_downsampling):
-            mult = 2 ** i
-            model += [nn.Conv3d(ngf * mult, ngf * mult * 2, kernel_size=(3, 3, 3),
-                                stride=(1, 2, 2), padding=(1, 1, 1), bias=use_bias),
-                      norm_layer(ngf * mult * 2),
-                      nn.ReLU(True)]
-
-        mult = 2 ** n_downsampling
-
-        for i in range(n_blocks):
-            model += [ResnetBlock_3d(ngf * mult, padding_type=padding_type, norm_layer=norm_layer,
-                                     use_dropout=use_dropout, use_bias=use_bias),
-                      ]
-        encoder_model = model[:]
-        model = []
-
-        for i in range(n_downsampling):
-            mult = 2 ** (n_downsampling - i)
-            model += [nn.ConvTranspose3d(ngf * mult, int(ngf * mult / 2),
-                                         kernel_size=(3, 3, 3), stride=(1, 2, 2),
-                                         padding=(1, 1, 1),
-                                         bias=use_bias),
-                      norm_layer(int(ngf * mult / 2)),
-                      nn.ReLU(True)]
-        model += [nn.Conv3d(ngf, output_nc, kernel_size=(3, 7, 7), padding=(1, 3, 3)),
-                  nn.Conv3d(output_nc, output_nc, kernel_size=(3, 6, 6), padding=(1, 4, 4), stride=(1, 1, 1), )]
-        model += [nn.Tanh()]
-
-        self.video_encoder = nn.Sequential(*encoder_model)
+        self.video_gen = unet_block
         # Video Generator
-        self.video_gen = nn.Sequential(*model)
+        #self.video_gen = nn.Sequential(*model)
 
         # Sequence Generator
         self.rnn_generator = nn.LSTM(input_size=self.rnn_input_size, hidden_size=self.rnn_hidden_size,
@@ -736,8 +713,8 @@ class SequenceGenerator(nn.Module):
         input_vid = inp
         # print(input_vid)
         # if self.gpu_ids and isinstance(input_vid, torch.cuda.FloatTensor):
-        encoded_vid = nn.parallel.data_parallel(self.video_encoder, input_vid, self.gpu_ids)
-        self.gen_vid = nn.parallel.data_parallel(self.video_gen, encoded_vid, self.gpu_ids)
+        #encoded_vid = nn.parallel.data_parallel(self.video_encoder, input_vid, self.gpu_ids)
+        self.gen_vid = nn.parallel.data_parallel(self.video_gen, input_vid, self.gpu_ids)
         # concat real vid with gen vid, then feed to rnn
         #rnn_input = torch.cat([input_vid, self.gen_vid], dim=1)  # concat along channel dim
 

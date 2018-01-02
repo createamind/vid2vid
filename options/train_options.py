@@ -4,10 +4,10 @@ from .base_options import BaseOptions
 class TrainOptions(BaseOptions):
     def initialize(self):
         BaseOptions.initialize(self)
-        self.parser.add_argument('--display_freq', type=int, default=150, help='frequency of showing training results on screen')
+        self.parser.add_argument('--display_freq', type=int, default=225, help='frequency of showing training results on screen')
         self.parser.add_argument('--display_single_pane_ncols', type=int, default=0, help='if positive, display all images in a single visdom web panel with certain number of images per row.')
         self.parser.add_argument('--update_html_freq', type=int, default=1000, help='frequency of saving training results to html')
-        self.parser.add_argument('--print_freq', type=int, default=150, help='frequency of showing training results on console')
+        self.parser.add_argument('--print_freq', type=int, default=225, help='frequency of showing training results on console')
         self.parser.add_argument('--save_latest_freq', type=int, default=2000, help='frequency of saving the latest results')
         self.parser.add_argument('--save_epoch_freq', type=int, default=1, help='frequency of saving checkpoints at the end of epochs')
         self.parser.add_argument('--continue_train', action='store_true', help='continue training: load the latest model')
@@ -30,7 +30,7 @@ class TrainOptions(BaseOptions):
         self.parser.add_argument('--load_video', type=int, default=0, help='load video = 1 | load image = 0')
         self.parser.add_argument('--data_dir', type=str, default='/data/dataset/depthdata/vkitti_1.3.1_rgb/**/**/',
                                  help='video or images data repository, example: virtualkitti dataset = /data/dataset/depthdata/vkitti_1.3.1_rgb/**/**/ | babayCrawlling dataset: /data/dataset/UCF/v_BabyCrawling**.avi')
-        self.parser.add_argument('--depth', type=int, default=75, help='3D Video frames length')
+        self.parser.add_argument('--depth', type=int, default=76, help='3D Video frames length for both A and B;2018.1.1change to double,this should be doubel actual depth')
         self.parser.add_argument('--skip', type=int, default=1, help='skip how many frames to catch data')
         self.parser.add_argument('--overlap', type=int, default=75, help='how many frames B will have as same as A')
 

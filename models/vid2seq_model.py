@@ -164,17 +164,24 @@ class Vid2SeqModel(BaseModel):
         fake_AB = torch.cat((self.real_A, self.fake_B), 1).data
         fake_AB_ = Variable(fake_AB)
         fake_cat_seq = torch.cat([self.speedX_A, self.speedX_B_pred], 1)
-        pred_fake = self.netD_vid(fake_AB_.detach())
-        speed_fake = self.netD_seq(fake_cat_seq.detach())
+        self.vid_pred_fake = self.netD_vid(fake_AB_.detach())
+        self.speed_fake = self.netD_seq(fake_cat_seq.detach())
         #speed_fake = self.netD_seq(self.speedX_A_pred)
-        self.loss_D_fake = self.criterionGAN(pred_fake, False) + self.criterionGAN(speed_fake, False)  # fake speed
+        self.loss_D_fake_vid = self.criterionGAN(self.vid_pred_fake, False)
+        self.loss_D_fake_seq = self.criterionGAN(self.speed_fake, False)  # fake speed
+
+
+        self.loss_D_fake = self.loss_D_fake_vid + self.loss_D_fake_seq
 
         # Real
         real_AB = torch.cat((self.real_A, self.real_B), 1)
         real_cat_seq = torch.cat([self.speedX_A, self.speedX_B], 1)
-        pred_real_vid = self.netD_vid(real_AB.detach())
-        pred_real_seq = self.netD_seq(real_cat_seq.detach())
-        self.loss_D_real = self.criterionGAN(pred_real_vid, True) + self.criterionGAN(pred_real_seq, True)
+        self.pred_real_vid = self.netD_vid(real_AB.detach())
+        self.pred_real_seq = self.netD_seq(real_cat_seq.detach())
+        self.loss_D_real_vid = self.criterionGAN(self.pred_real_vid, True)
+        self.loss_D_real_seq = self.criterionGAN(self.pred_real_seq, True)
+
+        self.loss_D_real = self.loss_D_real_vid + self.loss_D_real_seq
 
         # # Fake
         # # stop backprop to the generator by detaching fake seq
@@ -205,10 +212,10 @@ class Vid2SeqModel(BaseModel):
         pred_speed_fake = self.netD_seq(fake_cat_seq)
         #self.loss_G_GAN = self.criterionGAN(pred_vid_fake, True) + \
         #                  self.criterionGAN(pred_speed_fake, True)
-        loss_G_GAN_vid = self.criterionGAN(pred_vid_fake, True)
-        loss_G_GAN_vid.backward(retain_graph=True)
-        loss_G_GAN_seq = self.criterionGAN(pred_speed_fake, True)
-        loss_G_GAN_seq.backward(retain_graph=True)
+        self.loss_G_GAN_vid = self.criterionGAN(pred_vid_fake, True)
+        self.loss_G_GAN_vid.backward(retain_graph=True)
+        self.loss_G_GAN_seq = self.criterionGAN(pred_speed_fake, True)
+        self.loss_G_GAN_seq.backward(retain_graph=True)
         # Second, G(A) = B
         self.loss_G_L1_vid = self.criterionL1(self.fake_B, self.real_B) * self.opt.lambda_A
         self.loss_G_L1_seq = self.criterionL1(self.speedX_B_pred, self.speedX_B) * self.opt.lambda_A
@@ -216,7 +223,7 @@ class Vid2SeqModel(BaseModel):
         self.loss_G_L1_vid.backward(retain_graph=True)
         self.loss_G_L1_seq.backward(retain_graph=True)
 
-        self.loss_G_GAN = loss_G_GAN_vid + loss_G_GAN_seq
+        self.loss_G_GAN = self.loss_G_GAN_vid + self.loss_G_GAN_seq
 
         self.loss_G_L1 = self.loss_G_L1_vid + self.loss_G_L1_seq
 
@@ -287,9 +294,17 @@ class Vid2SeqModel(BaseModel):
 
     def get_current_errors(self):
         return OrderedDict([('G_GAN', self.loss_G_GAN.data[0]),
+                            ('self.loss_G_GAN_vid', self.loss_G_GAN_vid.data[0]),
+                            ('self.loss_G_GAN_seq', self.loss_G_GAN_seq.data[0]),
                             ('G_L1', self.loss_G_L1.data[0]),
+                            ('self.loss_G_L1_vid', self.loss_G_L1_vid.data[0]),
+                            ('self.loss_G_L1_seq', self.loss_G_L1_seq.data[0]),
                             ('D_real', self.loss_D_real.data[0]),
-                            ('D_fake', self.loss_D_fake.data[0])
+                            ('self.loss_D_real_vid', self.loss_D_real_vid.data[0]),
+                            ('self.loss_D_real_seq', self.loss_D_real_seq.data[0]),
+                            ('D_fake', self.loss_D_fake.data[0]),
+                            ('self.loss_D_fake_vid', self.loss_D_fake_vid.data[0]),
+                            ('self.loss_D_fake_seq', self.loss_D_fake_seq.data[0])
                             ])
 
 

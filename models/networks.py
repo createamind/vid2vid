@@ -140,7 +140,7 @@ def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropo
 
 
 def define_D(input_nc, ndf, which_model_netD, n_layers_D=3, norm='batch', use_sigmoid=False,
-             sequence_dim=None, sequence_depth=None, init_type='normal', gpu_ids=[]):
+            init_type='normal', gpu_ids=[], sequence_dim=None, sequence_depth=None):
     netD = None
     use_gpu = len(gpu_ids) > 0
     norm_layer = get_norm_layer(norm_type=norm)

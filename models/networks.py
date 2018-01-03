@@ -158,7 +158,8 @@ def define_D(input_nc, ndf, which_model_netD, n_layers_D=3, norm='batch', use_si
     elif which_model_netD == 'ConvSequenceDiscriminator':
         if sequence_dim is None or sequence_depth is None:
             raise ValueError('Specify sequence_dim and sequence_depth when use conv seq discriminator.')
-        netD = ConvSequenceDiscriminator(input_dim=sequence_dim, input_depth=sequence_depth)
+        netD = ConvSequenceDiscriminator(input_depth=sequence_depth, input_dim=sequence_dim, ndf=ndf, gpu_ids=gpu_ids)
+        print(netD)
     else:
         raise NotImplementedError('Discriminator model name [%s] is not recognized' %
                                   which_model_netD)
@@ -806,34 +807,44 @@ class SequenceDiscriminator(nn.Module):
         out = self.batch_classify(input)
         return loss_fn(out, target)
 
-
+"""
+Use a CNN as a discriminator for sequence
+inputs: target sequential sensor data (batch, depth, dim)
+outputs: prob of being true (0, 1)
+params: input_depth - the length of the input sequence;
+        input_dim - dimension of input sequence
+"""
 class ConvSequenceDiscriminator(nn.Module):
-    """
-    Use a CNN as a discriminator for sequence
-    inputs: target sequential sensor data
-    outputs: prob of being true (0, 1)
-    """
-
-    def __init__(self, input_depth, input_dim, kernel_size=2, norm_layer=nn.BatchNorm2d,
+    def __init__(self, input_depth, input_dim, ndf=64, kernel_size=2, norm_layer=nn.BatchNorm2d,
                  use_dropout=False, gpu_ids=None):
         super(ConvSequenceDiscriminator, self).__init__()
         self.norm_layer = norm_layer
         self.use_dropout = use_dropout
         self.gpu_ids = gpu_ids
 
-        conv_module = [nn.Conv2d(in_channels=1, out_channels=1, kernel_size=(kernel_size, input_dim)),
+        if type(norm_layer) == functools.partial:
+            use_bias = norm_layer.func == nn.InstanceNorm2d
+        else:
+            use_bias = norm_layer == nn.InstanceNorm2d
+
+
+        conv_module = [nn.Conv2d(in_channels=1, out_channels=ndf, kernel_size=(kernel_size, input_dim)),
                        norm_layer(1),
+                       nn.ReLU()]
+        conv_module += [nn.Conv2d(in_channels=ndf, out_channels=ndf * 2, kernel_size=(kernel_size, input_dim)),
+                       norm_layer(ndf),
                        nn.ReLU()]
         self.conv_module = nn.Sequential(*conv_module)
 
         # reshape and feed to fcn
-        output_module = [nn.Linear((input_depth-1) * input_dim, 100)]
+        output_module = [nn.Linear(2 * ndf * (input_depth-1) * input_dim, 100)]
         output_module += [nn.ReLU()]
         if self.use_dropout:
             output_module += [nn.Dropout(p=0.6)]
         output_module += [nn.Linear(100, 1)]
         output_module += [nn.Sigmoid()]
         self.output_module = nn.Sequential(*output_module)
+        self.weight = self.conv_module.parameters()
 
     def forward(self, inp):
         """
@@ -848,11 +859,6 @@ class ConvSequenceDiscriminator(nn.Module):
         else:
             out = self.conv_module(inp.view(inp.size()[0], 1, inp.size()[1], inp.size()[2]))
             return self.output_module(out.view(out.size()[0], -1))
-    pass
+    #pass
 
 
-# if __name__ == '__main__':
-#     conv_d = ConvSequenceDiscriminator(input_depth=10, input_dim=1)
-#     a = Variable(torch.randn(1, 10, 1))
-#     out = conv_d(a)
-#     print(out)

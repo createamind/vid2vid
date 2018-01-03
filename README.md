@@ -13,6 +13,8 @@ vid2dep vid2vid
 正在推进：
 vid2sped vid2angle vid2action vid2reward  vid2nlp  
 
-vid2representation
+sensorfuse2representation
 
 representation2XYZ
+
+sensorfuse2Representation2XYZ

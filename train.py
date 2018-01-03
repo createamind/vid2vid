@@ -11,10 +11,6 @@ output_video = False
 opt = TrainOptions().parse()
 opt.results_dir = './results/'
 opt.seq_depth = int(opt.depth / 2)
-#if opt.sensor_types in ['action']:    # add new sensor type later
-#    opt.seq_dim = 2
-#else:
-#    opt.seq_dim = 1
 
 data_loader = CreateDataLoader(opt)
 dataset = data_loader.load_data()

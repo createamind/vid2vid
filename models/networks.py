@@ -828,10 +828,10 @@ class ConvSequenceDiscriminator(nn.Module):
             use_bias = norm_layer == nn.InstanceNorm2d
 
 
-        conv_module = [nn.Conv2d(in_channels=1, out_channels=ndf, kernel_size=(kernel_size, input_dim)),
+        conv_module = [nn.Conv2d(in_channels=1, out_channels=ndf, kernel_size=(kernel_size, input_dim),bias=use_bias),
                        norm_layer(1),
                        nn.ReLU()]
-        conv_module += [nn.Conv2d(in_channels=ndf, out_channels=ndf * 2, kernel_size=(kernel_size, input_dim)),
+        conv_module += [nn.Conv2d(in_channels=ndf, out_channels=ndf * 2, kernel_size=(kernel_size, input_dim),bias=use_bias),
                        norm_layer(ndf),
                        nn.ReLU()]
         self.conv_module = nn.Sequential(*conv_module)

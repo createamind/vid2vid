@@ -844,7 +844,6 @@ class ConvSequenceDiscriminator(nn.Module):
         output_module += [nn.Linear(100, 1)]
         output_module += [nn.Sigmoid()]
         self.output_module = nn.Sequential(*output_module)
-        self.weight = self.conv_module.parameters()
 
     def forward(self, inp):
         """
@@ -859,6 +858,28 @@ class ConvSequenceDiscriminator(nn.Module):
         else:
             out = self.conv_module(inp.view(inp.size()[0], 1, inp.size()[1], inp.size()[2]))
             return self.output_module(out.view(out.size()[0], -1))
-    #pass
+
+    def batch_classify(self, input):
+        """
+        Classifies a batch of sequences.
+        Inputs: inp
+            - inp: batch_size x depth(seq_len) x 2*hidden_size
+        Returns: out
+            - out: batch_size ([0,1] score)
+        """
+        out = self.forward(input)
+        return out.view(out.size()[0], -1)
+
+    def batch_bce_loss(self, input, target):
+        """
+        Returns Binary Cross Entropy Loss for discriminator.
+         Inputs: input, target
+            - input: batch_size x depth x 2*hidden_size
+            - target: batch_size x depth (binary 1/0)
+        """
+        loss_fn = nn.BCELoss().cuda()
+        out = self.batch_classify(input)
+        return loss_fn(out, target)
+    
 
 

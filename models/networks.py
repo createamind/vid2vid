@@ -5,7 +5,6 @@ import functools
 import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.optim import lr_scheduler
-import numpy as np
 
 
 ###############################################################################
@@ -104,8 +103,30 @@ def get_scheduler(optimizer, opt):
     return scheduler
 
 
-def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropout=False, init_type='normal',
+def define_encoder(input_nc, output_nc, ngf, which_model_encoder, norm='batch', use_dropout=False, init_type='normal',
              gpu_ids=[]):
+    encoder = None
+    use_gpu = len(gpu_ids) > 0
+    norm_layer = get_norm_layer(norm_type=norm)
+
+    if use_gpu:
+        assert (torch.cuda.is_available())
+    if which_model_encoder == "ResnetVideoEncoder":
+        encoder = ResnetVideoEncoder(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, 
+                                    n_blocks=6, gpu_ids=gpu_ids)
+    else:
+        raise NotImplementedError('Video encoder model name [%s] is not recognized' % which_model_encoder)
+    if use_gpu > 0:
+        encoder.cuda(gpu_ids[0])
+    init_weights(encoder, init_type=init_type)
+    return encoder
+
+
+"""
+TODO separate Gnerator from video encoder - feature extractor
+"""
+def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropout=False, init_type='normal',
+             gpu_ids=[], input_height=None, input_width=None, sequence_dim=None):
     netG = None
     use_gpu = len(gpu_ids) > 0
     norm_layer = get_norm_layer(norm_type=norm)
@@ -131,6 +152,15 @@ def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropo
     elif which_model_netG == 'SequenceGenerator':
         netG = SequenceGenerator(input_nc, output_nc, rnn_input_size=196608, norm_layer=norm_layer, ngf=ngf,
                                  use_dropout=use_dropout, n_blocks=1, gpu_ids=gpu_ids)
+    elif which_model_netG == 'SeqCNNGenerator':
+        if input_height is None or input_width is None or sequence_dim is None:
+            raise ValueError('Params input_height, input_width and sequence_dim is necessary.')
+        netG = SeqCNNGenerator(input_nc, output_nc, ngf=ngf, norm_layer=norm_layer,
+                                 use_dropout=use_dropout, n_blocks=2, gpu_ids=gpu_ids, 
+                                 input_height=input_height, input_width=input_width, sequence_dim=sequence_dim)
+    elif which_model_netG == 'ResnetVideoGenerator':
+        netG = ResnetVideoGenerator(input_nc, output_nc, ngf=ngf, norm_layer=norm_layer,
+                                 use_dropout=use_dropout, n_blocks=2, gpu_ids=gpu_ids)
     else:
         raise NotImplementedError('Generator model name [%s] is not recognized' % which_model_netG)
     if len(gpu_ids) > 0:
@@ -139,7 +169,7 @@ def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropo
     return netG
 
 
-def define_D(input_nc, ndf, which_model_netD, n_layers_D=3, norm='batch', use_sigmoid=False,
+def define_D(input_nc, ngf, which_model_netD, n_layers_D=3, norm='batch', use_sigmoid=False,
             init_type='normal', gpu_ids=[], sequence_dim=None, sequence_depth=None):
     netD = None
     use_gpu = len(gpu_ids) > 0
@@ -148,18 +178,18 @@ def define_D(input_nc, ndf, which_model_netD, n_layers_D=3, norm='batch', use_si
     if use_gpu:
         assert (torch.cuda.is_available())
     if which_model_netD == 'basic':
-        netD = NLayerDiscriminator(input_nc, ndf, n_layers=3, norm_layer=norm_layer, use_sigmoid=use_sigmoid,
+        netD = NLayerDiscriminator(input_nc, ngf, n_layers=3, norm_layer=norm_layer, use_sigmoid=use_sigmoid,
                                    gpu_ids=gpu_ids)
     elif which_model_netD == 'n_layers':
-        netD = NLayerDiscriminator(input_nc, ndf, n_layers_D, norm_layer=norm_layer, use_sigmoid=use_sigmoid,
+        netD = NLayerDiscriminator(input_nc, ngf, n_layers_D, norm_layer=norm_layer, use_sigmoid=use_sigmoid,
                                    gpu_ids=gpu_ids)
     elif which_model_netD == 'SequenceDiscriminator':
         netD = SequenceDiscriminator(input_size=1, gpu_ids=gpu_ids)
-    elif which_model_netD == 'SequenceDiscriminator2':
+    elif which_model_netD == 'SeqCNNDiscriminator':
         if sequence_dim is None or sequence_depth is None:
             raise ValueError('Specify sequence_dim and sequence_depth when use conv seq discriminator.')
-        netD = SequenceDiscriminator2(input_depth=sequence_depth, input_dim=sequence_dim, ndf=ndf, gpu_ids=gpu_ids)
-        print(netD)
+        netD = SeqCNNDiscriminator(input_depth=sequence_depth, input_dim=sequence_dim, 
+            ngf=ngf, gpu_ids=gpu_ids)
     else:
         raise NotImplementedError('Discriminator model name [%s] is not recognized' %
                                   which_model_netD)
@@ -434,7 +464,7 @@ class UnetSkipConnectionBlock(nn.Module):
 
 # Defines the PatchGAN discriminator with the specified arguments.
 class NLayerDiscriminator(nn.Module):
-    def __init__(self, input_nc, ndf=64, n_layers=3, norm_layer=nn.BatchNorm3d, use_sigmoid=False, gpu_ids=[]):
+    def __init__(self, input_nc, ngf=64, n_layers=3, norm_layer=nn.BatchNorm3d, use_sigmoid=False, gpu_ids=[]):
         super(NLayerDiscriminator, self).__init__()
         self.gpu_ids = gpu_ids
         if type(norm_layer) == functools.partial:
@@ -445,9 +475,9 @@ class NLayerDiscriminator(nn.Module):
         ## TODO: D kernel 4
         kw = [3, 4, 4]
         padw = 1
-        s = [1, 2, 2]
+        # s = [1, 2, 2]
         sequence = [
-            nn.Conv3d(input_nc, ndf, kernel_size=kw, stride=(1, 2, 2), padding=padw),
+            nn.Conv3d(input_nc, ngf, kernel_size=kw, stride=(1, 2, 2), padding=padw),
             nn.LeakyReLU(0.2, True)
         ]
 
@@ -458,22 +488,22 @@ class NLayerDiscriminator(nn.Module):
             nf_mult = min(2 ** n, 8)
             print("===================" + str(2 ** n))
             sequence += [
-                nn.Conv3d(ndf * nf_mult_prev, ndf * nf_mult,
+                nn.Conv3d(ngf * nf_mult_prev, ngf * nf_mult,
                           kernel_size=kw, stride=(1, 2, 2), padding=padw, bias=use_bias),
-                norm_layer(ndf * nf_mult),
+                norm_layer(ngf * nf_mult),
                 nn.LeakyReLU(0.2, True)
             ]
 
         nf_mult_prev = nf_mult
         nf_mult = min(2 ** n_layers, 8)
         sequence += [
-            nn.Conv3d(ndf * nf_mult_prev, ndf * nf_mult,
+            nn.Conv3d(ngf * nf_mult_prev, ngf * nf_mult,
                       kernel_size=kw, stride=1, padding=padw, bias=use_bias),
-            norm_layer(ndf * nf_mult),
+            norm_layer(ngf * nf_mult),
             nn.LeakyReLU(0.2, True)
         ]
 
-        sequence += [nn.Conv3d(ndf * nf_mult, 1, kernel_size=kw, stride=1, padding=padw)]
+        sequence += [nn.Conv3d(ngf * nf_mult, 1, kernel_size=kw, stride=1, padding=padw)]
 
         if use_sigmoid:
             sequence += [nn.Sigmoid()]
@@ -497,7 +527,7 @@ class ResnetBlock_3d(nn.Module):
         conv_block = []
         p = 1
         kw = [3, 3, 3]
-        s = (1, 1, 1)
+        # s = (1, 1, 1)
 
         conv_block += [nn.Conv3d(dim, dim, kernel_size=kw, padding=p, bias=use_bias),
                        norm_layer(dim),
@@ -532,8 +562,8 @@ class SensorGenerator(nn.Module):
         else:
             use_bias = norm_layer == nn.InstanceNorm3d
 
-        kw = (3, 4, 4)
-        s = (1, 2, 2)
+        # kw = (3, 4, 4)
+        # s = (1, 2, 2)
 
         model = [nn.Conv3d(input_nc, ngf, kernel_size=(3, 7, 7), padding=(1, 3, 3),
                            bias=use_bias),
@@ -666,6 +696,93 @@ class Action_D(nn.Module):
 
 
 # Added by Jeven 2017-12-24
+class ResnetVideoEncoder(nn.Module):
+    def __init__(self, input_nc, output_nc, num_downs=8, ngf=64, norm_layer=nn.BatchNorm2d, target_size=1,
+             use_dropout=False, n_blocks=1, gpu_ids=None, padding_type='reflect'):
+        # Video encoder using part of Resnet architecture
+        super(ResnetVideoEncoder, self).__init__()
+        self.input_nc = input_nc
+        self.output_nc = output_nc
+        self.ngf = ngf
+        self.gpu_ids = gpu_ids
+        if type(norm_layer) == functools.partial:
+            use_bias = norm_layer.func == nn.InstanceNorm3d
+        else:
+            use_bias = norm_layer == nn.InstanceNorm3d
+
+        model = [nn.Conv3d(input_nc, ngf, kernel_size=(3, 7, 7), padding=(1, 3, 3),
+                           bias=use_bias),
+                 norm_layer(ngf),
+                 nn.ReLU(True)]
+
+        n_downsampling = 2
+        for i in range(n_downsampling):
+            mult = 2 ** i
+            model += [nn.Conv3d(ngf * mult, ngf * mult * 2, kernel_size=[3, 3, 3],
+                                stride=(1, 2, 2), padding=(1, 1, 1), bias=use_bias),
+                      norm_layer(ngf * mult * 2),
+                      nn.ReLU(True)]
+
+        mult = 2 ** n_downsampling
+        for i in range(n_blocks):
+            model += [ResnetBlock_3d(ngf * mult, padding_type=padding_type, norm_layer=norm_layer,
+                                     use_dropout=use_dropout, use_bias=use_bias),
+                      ]
+        self.model = nn.Sequential(*model)
+        pass
+
+    def forward(self, inp):
+        if self.gpu_ids and isinstance(inp.data, torch.cuda.FloatTensor):
+            return nn.parallel.data_parallel(self.model, inp, self.gpu_ids)
+        else:
+            return self.model(inp)
+
+
+class ResnetVideoGenerator(nn.Module):
+    """
+    Video generator based on ResnetVideoEncoder
+    Added by: Jeven, 2018.1.3
+    """
+    def __init__(self, input_nc, output_nc, ngf=64, norm_layer=nn.BatchNorm3d, use_dropout=False,
+                 n_blocks=6, gpu_ids=[], padding_type='reflect'):
+        assert (n_blocks >= 0)
+        super(ResnetVideoGenerator, self).__init__()
+        self.input_nc = input_nc
+        self.output_nc = output_nc
+        self.ngf = ngf
+        self.gpu_ids = gpu_ids
+        if type(norm_layer) == functools.partial:
+            use_bias = norm_layer.func == nn.InstanceNorm3d
+        else:
+            use_bias = norm_layer == nn.InstanceNorm3d
+
+        n_downsampling = 2
+        model = []
+        for i in range(n_downsampling):
+            mult = 2 ** (n_downsampling - i)
+
+            model += [nn.ConvTranspose3d(ngf * mult, int(ngf * mult / 2),
+                                         kernel_size=(3, 3, 3), stride=(1, 2, 2),
+                                         padding=(1, 1, 1),
+                                         bias=use_bias),
+                      norm_layer(int(ngf * mult / 2)),
+                      nn.ReLU(True)]
+        model += [nn.Conv3d(ngf, output_nc, kernel_size=(3, 7, 7), padding=(1, 3, 3)),
+                  norm_layer(output_nc),
+                  nn.Conv3d(output_nc, output_nc, kernel_size=(3, 6, 6), padding=(1, 4, 4), stride=(1, 1, 1))
+                  ]
+        model += [nn.Tanh()]
+        self.model = nn.Sequential(*model)
+        pass
+
+    def forward(self, inp):
+        # todo test
+        if self.gpu_ids and isinstance(inp.data, torch.cuda.FloatTensor):
+            return nn.parallel.data_parallel(self.model, inp, self.gpu_ids)
+        else:
+            return self.model(inp)
+
+
 class SequenceGenerator(nn.Module):
     """
     Encoding video using a CNN image encoder (Resnet) to a sequence of embeddings,
@@ -753,6 +870,68 @@ class SequenceGenerator(nn.Module):
         return loss  # per batch
 
 
+class SeqCNNGenerator(nn.Module):
+    """
+    A conv sequence generator build on top of ResnetVideoEncoder
+    Added by: Jeven, 2018.1.3
+    """
+    def __init__(self, input_nc, output_nc, ngf=64, norm_layer=nn.BatchNorm3d, use_dropout=False,
+                 n_blocks=1, gpu_ids=[], padding_type='reflect', 
+                 input_height=None, input_width=None, sequence_dim=None):
+        super(SeqCNNGenerator, self).__init__()
+        self.input_nc = input_nc
+        self.output_nc = output_nc
+        self.ngf = ngf
+        self.gpu_ids = gpu_ids
+        if type(norm_layer) == functools.partial:
+            use_bias = norm_layer.func == nn.InstanceNorm3d
+        else:
+            use_bias = norm_layer == nn.InstanceNorm3d
+        if input_height is None or input_width is None or sequence_dim is None:
+            raise ValueError('Params input_height, input_width and sequence_dim is necessary.')
+
+        n_downsampling = 2
+        model = []
+        mult = 2 ** n_downsampling
+        model += [nn.Conv3d(ngf * mult, output_nc, kernel_size=(3, 7, 7), padding=(1, 3, 3), bias=use_bias),
+                  norm_layer(output_nc),
+                  nn.Conv3d(output_nc, output_nc, kernel_size=(3, 5, 5), padding=(1, 2, 2), bias=use_bias),
+                  nn.Tanh()]
+
+        self.conv = nn.Sequential(*model)
+
+        model = [nn.Linear(output_nc * input_height * input_width, sequence_dim)] 
+        if use_dropout:
+            model += [nn.Dropout(p=0.5)]
+        model += [nn.LeakyReLU()]
+        self.output = nn.Sequential(*model)
+
+    def forward(self, inp):
+        # first conv and then reshape, feed to output
+        if self.gpu_ids and isinstance(inp.data, torch.cuda.FloatTensor):
+            out = nn.parallel.data_parallel(self.conv, inp, self.gpu_ids)
+            return nn.parallel.data_parallel(self.output, out.view(out.size()[0], out.size()[2], -1))
+        else:
+            out = self.conv(inp)
+            print('**', out.size())
+            return self.output(out.view(out.size()[0], out.size()[2], -1))
+
+
+    def batch_mse_loss(self, inp, target):
+        """
+        Returns the MSE Loss for predicting target sequence.
+        Inputs: input, target
+            - input: batch_size x depth x seq_len
+            - target: batch_size x depth x seq_len
+            inp should be target with <s> (start letter) prepended
+        """
+
+        loss_fn = nn.MSELoss()
+        self.forward(inp)
+        loss = loss_fn(self.gen_seq, target)
+        return loss  # per batch
+
+
 class SequenceDiscriminator(nn.Module):
     """
     Use a bidirectional LSTM as a discriminator for sequence
@@ -816,32 +995,30 @@ outputs: prob of being true (0, 1)
 params: input_depth - the length of the input sequence;
         input_dim - dimension of input sequence
 """
-class SequenceDiscriminator2(nn.Module):
-    def __init__(self, input_depth, input_dim, ndf=64, kernel_size=2, norm_layer=nn.BatchNorm2d,
-                 use_dropout=False, gpu_ids=None):
-        super(SequenceDiscriminator2, self).__init__()
-        self.norm_layer = norm_layer
-        self.use_dropout = use_dropout
+class SeqCNNDiscriminator(nn.Module):
+    def __init__(self, input_depth, input_dim, ndf=64, norm_layer=nn.BatchNorm3d,
+                 use_dropout=False, use_sigmoid=True, gpu_ids=None):
+        super(SeqCNNDiscriminator, self).__init__()
         self.gpu_ids = gpu_ids
-
         if type(norm_layer) == functools.partial:
             use_bias = norm_layer.func == nn.InstanceNorm2d
         else:
             use_bias = norm_layer == nn.InstanceNorm2d
 
-
         conv_module = [nn.Conv2d(in_channels=1, out_channels=ndf, kernel_size=(2, input_dim),bias=use_bias),
                        norm_layer(ndf),
                        nn.ReLU()]
+
         conv_module += [nn.Conv2d(in_channels=ndf, out_channels=ndf * 2, kernel_size=(2, input_dim),bias=use_bias),
                        norm_layer(ndf*2),
                        nn.ReLU()]
+
         self.conv_module = nn.Sequential(*conv_module)
 
         # reshape and feed to fcn
-        output_module = [nn.Linear(2 * ndf * (input_depth-2) * input_dim, 100)]
+        output_module = [nn.Linear(2 * ndf * (input_depth - 2) * input_dim, 100)]
         output_module += [nn.ReLU()]
-        if self.use_dropout:
+        if use_dropout:
             output_module += [nn.Dropout(p=0.5)]
         output_module += [nn.Linear(100, 1)]
         output_module += [nn.Sigmoid()]
@@ -865,7 +1042,7 @@ class SequenceDiscriminator2(nn.Module):
         """
         Classifies a batch of sequences.
         Inputs: inp
-            - inp: batch_size x depth(seq_len) x 2*hidden_size
+            - inp: batch_size x depth(seq_len) x dim
         Returns: out
             - out: batch_size ([0,1] score)
         """
@@ -876,17 +1053,33 @@ class SequenceDiscriminator2(nn.Module):
         """
         Returns Binary Cross Entropy Loss for discriminator.
          Inputs: input, target
-            - input: batch_size x depth x 2*hidden_size
+            - input: batch_size x depth x dim
             - target: batch_size x depth (binary 1/0)
         """
-        loss_fn = nn.BCELoss().cuda()
+        if self.gpu_ids:
+            loss_fn = nn.BCELoss().cuda()
+        loss_fn = nn.BCELoss()
         out = self.batch_classify(input)
         return loss_fn(out, target)
-    
 
+
+
+# test
 if __name__ == '__main__':
-    seq = torch.autograd.Variable(torch.randn(1, 30, 1))
-    D = SequenceDiscriminator2(input_depth=30, input_dim=1)
-    out = D(seq)
-    print(out.size())
+    netE = ResnetVideoEncoder(input_nc=3, output_nc=None)
+    netG_vid = ResnetVideoGenerator(input_nc=None, output_nc=3)
+    netG_seq = SeqCNNGenerator(input_nc=None, output_nc=3, input_height=5, input_width=5, sequence_dim=1)
+    netD_seq = SeqCNNDiscriminator(input_depth=10, input_dim=1)
+    input_vid = torch.autograd.Variable(torch.randn(1, 3, 10, 20, 20))
+    input_seq = torch.autograd.Variable(torch.randn(1, 10, 1))
+
+    encoded_vid = netE(input_vid)
+    print('vid encoded: ', encoded_vid.size())
+    gen_vid = netG_vid(encoded_vid)
+    print('generated vid: ', gen_vid.size())
+    gen_seq = netG_seq(encoded_vid)
+    print('generated seq: ', gen_seq.size())
+    pred_seq = netD_seq(gen_seq)
+    print(pred_seq)
+
     

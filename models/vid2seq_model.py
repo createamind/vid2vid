@@ -41,8 +41,7 @@ class Vid2SeqModel(BaseModel):
         if self.isTrain:
             use_sigmoid = opt.no_lsgan
             self.netD_seq = networks.define_D(opt.input_nc + opt.output_nc, opt.ndf, opt.which_model_netD_seq,
-                                              opt.n_layers_D, opt.norm, use_sigmoid, opt.init_type, self.gpu_ids, 
-                                              sequence_dim=1, sequence_depth=opt.seq_depth)
+                                              opt.n_layers_D, opt.norm, use_sigmoid, opt.init_type, self.gpu_ids, sequence_depth=opt.depth, sequence_dim=1) 
             
             self.netD_action = networks.define_D(opt.input_nc + opt.output_nc, opt.ndf, opt.which_model_netD_seq,
                                               opt.n_layers_D, opt.norm, use_sigmoid, opt.init_type, self.gpu_ids, 

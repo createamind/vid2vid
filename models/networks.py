@@ -155,10 +155,10 @@ def define_D(input_nc, ndf, which_model_netD, n_layers_D=3, norm='batch', use_si
                                    gpu_ids=gpu_ids)
     elif which_model_netD == 'SequenceDiscriminator':
         netD = SequenceDiscriminator(input_size=1, gpu_ids=gpu_ids)
-    elif which_model_netD == 'ConvSequenceDiscriminator':
+    elif which_model_netD == 'SequenceDiscriminator2':
         if sequence_dim is None or sequence_depth is None:
             raise ValueError('Specify sequence_dim and sequence_depth when use conv seq discriminator.')
-        netD = ConvSequenceDiscriminator(input_depth=sequence_depth, input_dim=sequence_dim, ndf=ndf, gpu_ids=gpu_ids)
+        netD = SequenceDiscriminator2(input_depth=sequence_depth, input_dim=sequence_dim, ndf=ndf, gpu_ids=gpu_ids)
         print(netD)
     else:
         raise NotImplementedError('Discriminator model name [%s] is not recognized' %
@@ -715,6 +715,7 @@ class SequenceGenerator(nn.Module):
         self.rnn2out = nn.Linear(self.rnn_hidden_size, self.target_size)
 
     def forward(self, inp):
+
         input_vid = inp
         # print(input_vid)
         # if self.gpu_ids and isinstance(input_vid, torch.cuda.FloatTensor):
@@ -782,6 +783,7 @@ class SequenceDiscriminator(nn.Module):
         self.output_layer = nn.Sequential(*output_module)
 
     def forward(self, input):
+    
         out, _ = self.rnn_discriminator(input)  # batch_size x depth(seq_len) x hidden_size
         return self.output_layer(out)
 
@@ -814,10 +816,10 @@ outputs: prob of being true (0, 1)
 params: input_depth - the length of the input sequence;
         input_dim - dimension of input sequence
 """
-class ConvSequenceDiscriminator(nn.Module):
+class SequenceDiscriminator2(nn.Module):
     def __init__(self, input_depth, input_dim, ndf=64, kernel_size=2, norm_layer=nn.BatchNorm2d,
                  use_dropout=False, gpu_ids=None):
-        super(ConvSequenceDiscriminator, self).__init__()
+        super(SequenceDiscriminator2, self).__init__()
         self.norm_layer = norm_layer
         self.use_dropout = use_dropout
         self.gpu_ids = gpu_ids
@@ -828,19 +830,19 @@ class ConvSequenceDiscriminator(nn.Module):
             use_bias = norm_layer == nn.InstanceNorm2d
 
 
-        conv_module = [nn.Conv2d(in_channels=1, out_channels=ndf, kernel_size=(kernel_size, input_dim),bias=use_bias),
-                       norm_layer(1),
-                       nn.ReLU()]
-        conv_module += [nn.Conv2d(in_channels=ndf, out_channels=ndf * 2, kernel_size=(kernel_size, input_dim),bias=use_bias),
+        conv_module = [nn.Conv2d(in_channels=1, out_channels=ndf, kernel_size=(2, input_dim),bias=use_bias),
                        norm_layer(ndf),
+                       nn.ReLU()]
+        conv_module += [nn.Conv2d(in_channels=ndf, out_channels=ndf * 2, kernel_size=(2, input_dim),bias=use_bias),
+                       norm_layer(ndf*2),
                        nn.ReLU()]
         self.conv_module = nn.Sequential(*conv_module)
 
         # reshape and feed to fcn
-        output_module = [nn.Linear(2 * ndf * (input_depth-1) * input_dim, 100)]
+        output_module = [nn.Linear(2 * ndf * (input_depth-2) * input_dim, 100)]
         output_module += [nn.ReLU()]
         if self.use_dropout:
-            output_module += [nn.Dropout(p=0.6)]
+            output_module += [nn.Dropout(p=0.5)]
         output_module += [nn.Linear(100, 1)]
         output_module += [nn.Sigmoid()]
         self.output_module = nn.Sequential(*output_module)
@@ -882,4 +884,9 @@ class ConvSequenceDiscriminator(nn.Module):
         return loss_fn(out, target)
     
 
-
+if __name__ == '__main__':
+    seq = torch.autograd.Variable(torch.randn(1, 30, 1))
+    D = SequenceDiscriminator2(input_depth=30, input_dim=1)
+    out = D(seq)
+    print(out.size())
+    

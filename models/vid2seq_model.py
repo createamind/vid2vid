@@ -135,6 +135,9 @@ class Vid2SeqModel(BaseModel):
             print(self.action_B_pred)
             print("." * 10 + "Compare sequences" + "." * 10)
 
+    def test(self):
+        self.fake_B, self.action_B_pred = self.netG(self.input_A)
+
     def backward_D(self):
         fake_AB = torch.cat((self.real_A, self.fake_B), 1).data
         fake_AB_ = Variable(fake_AB)

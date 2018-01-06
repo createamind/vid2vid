@@ -13,7 +13,7 @@ Video2XYZ
 
 <a href="https://v.qq.com/iframe/preview.html?vid=u1328ni8uvu&amp;width=500&amp;height=375&amp;auto=0" > [video generate demo: children]</a>
 
-正在推进： vid2sped vid2angle vid2action vid2reward vid2nlp  
+正在推进： vid2sped vid2angle vid2action vid2reward vid2nlp   ref: https://github.com/createamind/vid2vid/issues/3
 
 更完善的期望是sensorfuse2representation,  representation2XYZ, SF2Rpstt2XYZ,
 

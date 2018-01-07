@@ -2,6 +2,7 @@ import time, os, cv2
 from options.train_options import TrainOptions
 from data.data_loader import CreateDataLoader
 from models.models import create_model
+from util.logger import Logger
 import ntpath
 import numpy as np
 import skvideo.io
@@ -22,7 +23,8 @@ model = create_model(opt)
 
 total_steps = 0
 web_dir = os.path.join(opt.results_dir, opt.name, '%s_%s' % (opt.phase, opt.which_epoch))
-
+log_dir = os.path.join(opt.results_dir, opt.name, 'logs')
+logger = Logger(log_dir)
 
 def ck_array(i, o):
     i_A = np.transpose(127.5 * (i['A'] + 1.)[0], (1, 2, 3, 0))
@@ -126,6 +128,23 @@ def save_videos(web_dir, visuals, vid_path, epoch):
             # print(img.shape)
             print('save path ', save_path + save_name)
             cv2.imwrite(save_path + save_name, img)
+'''
+#============ TensorBoard logging ============#
+# Log the scalar values
+info = {
+    'loss': loss.data[0],
+    'accuracy': accuracy.data[0]
+}
+
+for tag, value in info.items():
+    logger.scalar_summary(tag, value, step+1)
+
+# Log values and gradients of the parameters (histogram)
+for tag, value in net.named_parameters():
+    tag = tag.replace('.', '/')
+    logger.histo_summary(tag, to_np(value), step+1)
+    logger.histo_summary(tag+'/grad', to_np(value.grad), step+1)
+'''
 
 # pretrain generator
 epochs = range(opt.epoch_count, opt.niter + opt.niter_decay + 1)
@@ -150,6 +169,9 @@ if opt.pretrain:
                 print("epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(
                     epoch, i, g_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
                 print("target seq:\n {} \ngenerated seq: {}".format(model.seq_A, model.seq_B_pred))
+                
+                logger.scalar_summary('pretrain_G_seq_loss', g_loss.data[0], total_steps+1)
+
             if total_steps % opt.save_latest_freq == 0:
                 print('saving the latest model (epoch %d, total_steps %d)' %
                       (epoch, total_steps))
@@ -159,7 +181,6 @@ if opt.pretrain:
 
     total_steps = 0
     print(epochs)
-
     # pre-train discriminator
     print('=' * 20 + 'Pre-train Discriminator' + '=' * 20)
     for epoch in epochs:
@@ -177,6 +198,9 @@ if opt.pretrain:
             if total_steps % opt.print_freq == 0:
                 print("epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(
                     epoch, i, d_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
+
+                logger.scalar_summary('pretrain_D_seq_loss', d_loss.data[0], total_steps+1)
+
             if total_steps % opt.save_latest_freq == 0:
                 print('saving the latest model (epoch %d, total_steps %d)' %
                       (epoch, total_steps))
@@ -228,6 +252,9 @@ for epoch in epochs:
             t = (time.time() - iter_start_time) / opt.batchSize
             print("epoch: {}, iter: {}, g-mse-loss: {}, time: {} seconds/batch".format(
                 epoch, i, model.g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
+
+            logger.scalar_summary('adversarial_G_seq_loss', model.g_mse_loss.data[0], total_steps+1)
+
             print(model.get_current_errors())
             print("seq A :\n {} target seq:\n {} \ngenerated seq: {}".format(model.seq_A,model.seq_B, model.seq_B_pred))
             # visualizer.print_current_errors(epoch, epoch_iter, errors, t)

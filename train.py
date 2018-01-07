@@ -11,6 +11,7 @@ output_video = False
 opt = TrainOptions().parse()
 opt.results_dir = './results/'
 opt.seq_depth = int(opt.depth / 2)
+opt.seq_type = 'angle'
 
 data_loader = CreateDataLoader(opt)
 dataset = data_loader.load_data()
@@ -202,7 +203,7 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
 
         # data = dict(data)
 
-        #print(data)
+        # print(data)
         # print(data['speedX'].shape)
 
         iter_start_time = time.time()
@@ -220,7 +221,7 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
             vid_path = model.get_image_paths()
 
             # print(visuals)
-            print('process video... %s,progress %d' % (vid_path, i) )
+            # print('process video... %s,progress %d' % (vid_path, i) )
             save_videos(web_dir, visuals, vid_path, epoch)
 
         if total_steps % opt.print_freq == 0:
@@ -229,7 +230,7 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
             print("epoch: {}, iter: {}, g-mse-loss: {}, time: {} seconds/batch".format(
                 epoch, i, g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
             print(model.get_current_errors())
-            print("seq A :\n {} target seq:\n {} \ngenerated seq: {}".format(model.speedX_A,model.speedX_B, model.speedX_B_pred))
+            print("seq A :\n {} target seq:\n {} \ngenerated seq: {}".format(model.seq_A,model.seq_B, model.seq_B_pred))
             # visualizer.print_current_errors(epoch, epoch_iter, errors, t)
             # if opt.display_id > 0:
             # visualizer.plot_current_errors(epoch, float(epoch_iter)/dataset_size, opt, errors)

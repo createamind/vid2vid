@@ -36,14 +36,15 @@ class Vid2SeqModel(BaseModel):
         self.seq_B = self.Tensor(opt.batchSize, int(opt.depth / 2))
 
         # load/define networks
-        self.netE = networks.define_encoder(opt.input_nc, opt.output_nc, opt.ngf, opt.which_model_encoder, 
+        # video encoder model netE = net encoder
+        self.netE = networks.define_E(opt.input_nc, opt.output_nc, opt.ngf, opt.which_model_netE, 
                                         opt.norm, not opt.no_dropout, opt.init_type, self.gpu_ids)
 
         self.netG_vid = networks.define_G(opt.input_nc, opt.output_nc, opt.ngf, opt.which_model_netG_vid, 
                                         opt.norm, not opt.no_dropout, opt.init_type, self.gpu_ids)
 
         self.netG_seq = networks.define_G(opt.input_nc, opt.output_nc, opt.ngf, opt.which_model_netG_seq, 
-                                        opt.norm, not opt.no_dropout, opt.init_type, self.gpu_ids)
+                                        opt.norm, not opt.no_dropout, opt.init_type, self.gpu_ids, input_height=64, input_width=64, sequence_dim=1)
 
         if self.isTrain:
             use_sigmoid = opt.no_lsgan
@@ -122,8 +123,8 @@ class Vid2SeqModel(BaseModel):
         # print("======input A SIZE==== {0}".format(input_A.size()))
         input_B = torch.from_numpy(inputs['B' if AtoB else 'A']).float()
         # speedX = torch.from_numpy(inputs["speedX"])  # with the length lX = lA + lB
-        seq_A = torch.from_numpy(np.split(inputs["angle"], 2, axis=1)[0]).float()*100
-        seq_B = torch.from_numpy(np.split(inputs["angle"], 2, axis=1)[1]).float()*100
+        seq_A = torch.from_numpy(np.split(inputs[self.opt.seq_type], 2, axis=1)[0]).float()*100
+        seq_B = torch.from_numpy(np.split(inputs[self.opt.seq_type], 2, axis=1)[1]).float()*100
         # print('*' * 20 + ' set inputs, shapes:')
         # print('seq_A', seq_A.size())
         # print('seq_B', seq_B.size())
@@ -173,115 +174,114 @@ class Vid2SeqModel(BaseModel):
         #     self.input_seq = self.input_seq.cuda()
 
     def forward(self):
-        encoded = self.netE(self.input_A)
-        self.fake_B = self.netG_vid(encoded)
-        self.seq_B_pred = self.netG_seq(encoded)
-
-        # print("." * 10 + "Compare sequences" + "." * 10)
-        # print(self.seq_A.data)
-        # print(self.seq_A_pred.data)
-        # print("." * 10 + "Compare sequences" + "." * 10)
+        self.encoded_A = self.netE(self.input_A)
+        if self.opt.train_mode != 'seq_only':
+            self.fake_B = self.netG_vid(self.encoded_A)
+        if self.opt.train_mode != 'vid_only':
+            self.seq_B_pred = self.netG_seq(self.encoded_A)
+            self.g_mse_loss = self.netG_seq.batch_mse_loss(self.encoded_A, self.seq_B)
 
     def backward_D(self):
-        fake_AB = torch.cat((self.real_A, self.fake_B), 1).data
-        fake_AB_ = Variable(fake_AB)
-        fake_cat_seq = torch.cat([self.seq_A, self.seq_B_pred], 1)
-        self.vid_pred_fake = self.netD_vid(fake_AB_.detach())
-        self.speed_fake = self.netD_seq(fake_cat_seq.detach())
-        #speed_fake = self.netD_seq(self.seq_A_pred)
-        self.loss_D_fake_vid = self.criterionGAN(self.vid_pred_fake, False)
-        self.loss_D_fake_seq = self.criterionGAN(self.speed_fake, False)  # fake speed
+        if self.opt.train_mode != 'seq_only':
+            fake_AB = torch.cat((self.real_A, self.fake_B), 1).data
+            fake_AB_ = Variable(fake_AB)
+            self.vid_pred_fake = self.netD_vid(fake_AB_.detach())
+            self.loss_D_fake_vid = self.criterionGAN(self.vid_pred_fake, False)
 
+            real_AB = torch.cat((self.real_A, self.real_B), 1)
+            self.pred_real_vid = self.netD_vid(real_AB.detach())
+            self.loss_D_real_vid = self.criterionGAN(self.pred_real_vid, True)
 
-        self.loss_D_fake = self.loss_D_fake_vid + self.loss_D_fake_seq
+        if self.opt.train_mode != 'vid_only':
+            fake_cat_seq = torch.cat([self.seq_A, self.seq_B_pred], 1)
+            self.speed_fake = self.netD_seq(fake_cat_seq.detach())
+            self.loss_D_fake_seq = self.criterionGAN(self.speed_fake, False)
+            
+            real_cat_seq = torch.cat([self.seq_A, self.seq_B], 1)
+            self.pred_real_seq = self.netD_seq(real_cat_seq.detach())
+            self.loss_D_real_seq = self.criterionGAN(self.pred_real_seq, True)
 
-        # Real
-        real_AB = torch.cat((self.real_A, self.real_B), 1)
-        real_cat_seq = torch.cat([self.seq_A, self.seq_B], 1)
-        self.pred_real_vid = self.netD_vid(real_AB.detach())
-        self.pred_real_seq = self.netD_seq(real_cat_seq.detach())
-        self.loss_D_real_vid = self.criterionGAN(self.pred_real_vid, True)
-        self.loss_D_real_seq = self.criterionGAN(self.pred_real_seq, True)
-
-        self.loss_D_real = self.loss_D_real_vid + self.loss_D_real_seq
-
-        # # Fake
-        # # stop backprop to the generator by detaching fake seq
-        # if type(self.gen_seq) != Variable:
-        #     fake_seq = Variable(self.gen_seq)
-        # else:
-        #     fake_seq = self.gen_seq
-        # pred_fake = self.netD(fake_seq.detach())
-        # self.loss_D_fake = self.criterionGAN(pred_fake, False)
-        #
-        # # Real
-        # label_size = list(self.input_seq.size())
-        # label_size[2] = 1
-        # pred_real = Variable(torch.ones(label_size)).cuda()
-        # self.loss_D_real = self.criterionGAN(pred_real, True)
+        if slef.opt.train_mode == 'vid_only':
+            self.loss_D_fake = self.loss_D_fake_vid
+            self.loss_D_real = self.loss_D_real_vid
+        elif slef.opt.train_mode == 'seq_only':
+            self.loss_D_fake = self.loss_D_fake_seq
+            self.loss_D_real = self.loss_D_real_seq
+        else:
+            self.loss_D_fake = self.loss_D_fake_vid + self.loss_D_fake_seq
+            self.loss_D_real = self.loss_D_real_vid + self.loss_D_real_seq
 
         # Combined loss
         self.loss_D = (self.loss_D_fake + self.loss_D_real) * 0.5
-
         self.loss_D.backward(retain_graph=True)
 
     def backward_G(self):
-
         # First, G(A) should fake the discriminator
-        fake_AB = torch.cat((self.real_A, self.fake_B), 1)
-        pred_vid_fake = self.netD_vid(fake_AB)
-        fake_cat_seq = torch.cat([self.seq_A, self.seq_B_pred], 1)
-        pred_speed_fake = self.netD_seq(fake_cat_seq)
-        #self.loss_G_GAN = self.criterionGAN(pred_vid_fake, True) + \
-        #                  self.criterionGAN(pred_speed_fake, True)
-        self.loss_G_GAN_vid = self.criterionGAN(pred_vid_fake, True)
-        self.loss_G_GAN_vid.backward(retain_graph=True)
-        self.loss_G_GAN_seq = self.criterionGAN(pred_speed_fake, True)
-        self.loss_G_GAN_seq.backward(retain_graph=True)
         # Second, G(A) = B
-        self.loss_G_L1_vid = self.criterionL1(self.fake_B, self.real_B) * self.opt.lambda_A
-        self.loss_G_L1_seq = self.criterionL1(self.seq_B_pred, self.seq_B) * self.opt.lambda_A
-        #self.loss_G_L1 = self.loss_G_L1_vid + self.loss_G_L1_seq
-        self.loss_G_L1_vid.backward(retain_graph=True)
-        self.loss_G_L1_seq.backward(retain_graph=True)
+        if self.opt.train_mode != 'seq_only':
+            fake_AB = torch.cat((self.real_A, self.fake_B), 1)
+            pred_vid_fake = self.netD_vid(fake_AB)
+            self.loss_G_GAN_vid = self.criterionGAN(pred_vid_fake, True)
+            self.loss_G_GAN_vid.backward(retain_graph=True)
+            
+            self.loss_G_L1_vid = self.criterionL1(self.fake_B, self.real_B) * self.opt.lambda_A
+            self.loss_G_L1_vid.backward(retain_graph=True)
+        
+        if self.opt.train_mode != 'vid_only':
+            fake_cat_seq = torch.cat([self.seq_A, self.seq_B_pred], 1)
+            pred_speed_fake = self.netD_seq(fake_cat_seq)
+            self.loss_G_GAN_seq = self.criterionGAN(pred_speed_fake, True)
+            self.loss_G_GAN_seq.backward(retain_graph=True)
+        
+            self.loss_G_L1_seq = self.criterionL1(self.seq_B_pred, self.seq_B) * self.opt.lambda_A
+            self.loss_G_L1_seq.backward(retain_graph=True)
 
-        self.loss_G_GAN = self.loss_G_GAN_vid + self.loss_G_GAN_seq
+       
+        if self.opt.train_mode == 'seq_only':
+            self.loss_G_GAN = self.loss_G_GAN_seq
+            self.loss_G_L1 = self.loss_G_L1_seq
+        elif self.opt.train_mode == 'vid_only':
+            self.loss_G_GAN = self.loss_G_GAN_vid
+            self.loss_G_L1 = self.loss_G_L1_vid
+        else:
+            self.loss_G_GAN = self.loss_G_GAN_vid + self.loss_G_GAN_seq
+            self.loss_G_L1 = self.loss_G_L1_vid + self.loss_G_L1_seq
 
-        self.loss_G_L1 = self.loss_G_L1_vid + self.loss_G_L1_seq
-
-        #loss_G_vid= loss_G_GAN_vid + self.loss_G_L1_vid
-        #loss_G_seq = loss_G_GAN_seq + self.loss_G_L1_seq
-        #loss_G_seq.backward(retain_graph=True)
-        #loss_G_vid.backward()#retain_graph=True)
-
-        # action
-        # self.action_loss = self.criterionL2(self.action,self.action_prediction)
-        #self.loss_G = self.loss_G_GAN + self.loss_G_L1  # +self.action_loss
-        #self.loss_G.backward(retain_graph=True)
-
-        # First, G(A) should fool the discriminator
-        # pred_fake = self.netD(self.gen_seq)
-        # self.loss_G_GAN = self.criterionGAN(pred_fake, True)
-        #
-        # # Second, G(A) = B
-        # self.loss_G_L1 = self.criterionL1(self.gen_seq, self.input_seq) * 10.0  # opt.lambda_A
-        #
-        # self.loss_G = self.loss_G_GAN + self.loss_G_L1
-        #
-        # self.loss_G.backward()
-        # return mse loss, for print
-        return self.netG_seq.batch_mse_loss(self.input_A, self.seq_B)
 
     def pretrain_G_step(self):
+        # TODO add triger for pretrain G_vid or G_seq
         # print(self.input_vid.size())
-        g_loss = self.netG.batch_mse_loss(self.input_A, self.seq_B)
-        self.seq_B_pred = self.netG.gen_seq
-        self.optimizer_G.zero_grad()
-        g_loss.backward(retain_graph=True)
-        self.optimizer_G.step()
-        return g_loss
+        self.forward()
+        if self.opt.train_mode == 'seq_only':
+            self.seq_B_pred = self.netG_seq.gen_seq
+            self.optimizer_G_seq.zero_grad()
+	    self.g_mse_loss.backward(retain_graph=True)
+	    self.optimizer_G_seq.step()
+        elif self.opt.train_mode == 'vid_only':
+            self.optimizer_D_vid.zero_grad()
+            self.backward_D()
+            self.optimizer_D_vid.step()
+            self.optimizer_E.zero_grad()
+            self.optimizer_G_vid.zero_grad()
+            self.backward_G()
+            self.optimizer_G_vid.step()
+            self.optimizer_E.step()
+        else:
+            self.seq_B_pred = self.netG_seq.gen_seq
+            self.optimizer_G_seq.zero_grad()
+            self.g_mse_loss.backward(retain_graph=True)
+
+            self.optimizer_D_vid.zero_grad()
+            self.backward_D()
+            self.optimizer_D_vid.step()
+            self.optimizer_E.zero_grad()
+            self.optimizer_G_vid.zero_grad()
+            self.backward_G()
+            self.optimizer_G_vid.step()
+            self.optimizer_E.step()
 
     def pretrain_D_seq(self):
+        # TODO modify acording to pretrain G
         label_size = list(self.seq_B.size())
         label_size[2] = 1
         target_speed_real = Variable(torch.ones(label_size).resize_(label_size[0], label_size[1]))
@@ -290,13 +290,37 @@ class Vid2SeqModel(BaseModel):
 
         # warnings.warn("Using a target size ({}) that is different to the input size ({}) is deprecated. "
         #               "Please ensure they have the same size.".format(self.seq_B.size(), target_real.size()))
+        
+        if self.opt.train_mode == 'seq_only':
+            d_loss = self.netD_seq.batch_bce_loss(self.seq_B.detach().cuda(), target_speed_real.cuda())
+            d_loss += self.netD_vid.batch_bce_loss(self.seq_B_pred.detach().cuda(), target_speed_fake.cuda())
+            self.optimizer_D_seq.zero_grad()
+            d_loss.backward()
+            self.optimizer_D_seq.step()
+        elif self.opt.train_mode == 'vid_only':
+            self.optimizer_D_vid.zero_grad()
+            self.backward_D()
+            self.optimizer_D_vid.step()
+            self.optimizer_E.zero_grad()
+            self.optimizer_G_vid.zero_grad()
+            self.backward_G()
+            self.optimizer_G_vid.step()
+            self.optimizer_E.step()
+        else:
+            d_loss = self.netD_seq.batch_bce_loss(self.seq_B.detach().cuda(), target_speed_real.cuda())
+            d_loss += self.netD_vid.batch_bce_loss(self.seq_B_pred.detach().cuda(), target_speed_fake.cuda())
+            self.optimizer_D_seq.zero_grad()
+            d_loss.backward()
+            self.optimizer_D_seq.step()
 
-        d_loss = self.netD_seq.batch_bce_loss(self.seq_B.cuda(), target_speed_real.cuda())
-        d_loss += self.netD_vid.batch_bce_loss(self.seq_B_pred.detach().cuda(), target_speed_fake.cuda())
-        self.optimizer_D_seq.zero_grad()
-        d_loss.backward()
-        self.optimizer_D_seq.step()
-        return d_loss
+            self.optimizer_D_vid.zero_grad()
+            self.backward_D()
+            self.optimizer_D_vid.step()
+            self.optimizer_E.zero_grad()
+            self.optimizer_G_vid.zero_grad()
+            self.backward_G()
+            self.optimizer_G_vid.step()
+            self.optimizer_E.step()
 
     def optimize_parameters(self):
         self.forward()
@@ -310,12 +334,10 @@ class Vid2SeqModel(BaseModel):
         self.optimizer_E.zero_grad()
         self.optimizer_G_vid.zero_grad()
         self.optimizer_G_seq.zero_grad()
-        g_mse_loss = self.backward_G()
+        self.backward_G()
         self.optimizer_G_vid.step()
         self.optimizer_G_seq.step()
         self.optimizer_E.step()
-
-        return g_mse_loss
 
     def get_current_errors(self):
         return OrderedDict([('G_GAN', self.loss_G_GAN.data[0]),
@@ -351,6 +373,8 @@ class Vid2SeqModel(BaseModel):
 #                            ('real_B', self.seq_A), ('fake_seq', self.seq_A_pred)])
 
     def save(self, label):
-        self.save_network(self.netG, 'G', label, self.gpu_ids)
+        self.save_network(self.netE, 'E', label, self.gpu_ids)
+        self.save_network(self.netG_vid, 'G_vid', label, self.gpu_ids)
+        self.save_network(self.netG_seq, 'G_seq', label, self.gpu_ids)
         self.save_network(self.netD_vid, 'D_vid', label, self.gpu_ids)
         self.save_network(self.netD_seq, 'D_seq', label, self.gpu_ids)

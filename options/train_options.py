@@ -33,6 +33,7 @@ class TrainOptions(BaseOptions):
         self.parser.add_argument('--depth', type=int, default=76, help='3D Video frames length for both A and B;2018.1.1change to double,this should be doubel actual depth')
         self.parser.add_argument('--skip', type=int, default=1, help='skip how many frames to catch data')
         self.parser.add_argument('--overlap', type=int, default=75, help='how many frames B will have as same as A')
+        self.parser.add_argument('--train_mode', type=str, default='both', help='training mode: vid_only, seq_only or both')
 
 
 

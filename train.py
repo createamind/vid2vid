@@ -11,7 +11,6 @@ output_video = False
 opt = TrainOptions().parse()
 opt.results_dir = './results/'
 opt.seq_depth = int(opt.depth / 2)
-opt.seq_type = 'angle'
 
 data_loader = CreateDataLoader(opt)
 dataset = data_loader.load_data()
@@ -128,65 +127,64 @@ def save_videos(web_dir, visuals, vid_path, epoch):
             print('save path ', save_path + save_name)
             cv2.imwrite(save_path + save_name, img)
 
-
 # pretrain generator
 epochs = range(opt.epoch_count, opt.niter + opt.niter_decay + 1)
 print(epochs)
-epochs = range(1)
+# epochs = range(1)
+if opt.pretrain:
+    print('=' * 20 + 'Pre-train Generator' + '=' * 20)
+    for epoch in epochs:
+        # for epoch in range(1):
+        epoch_start_time = time.time()
+        epoch_iter = 0
 
-print('=' * 20 + 'Pre-train Generator' + '=' * 20)
-for epoch in epochs:
-    # for epoch in range(1):
-    epoch_start_time = time.time()
-    epoch_iter = 0
+        for i, data in enumerate(dataset):
+            iter_start_time = time.time()
+            # visualizer.reset()
+            total_steps += opt.batchSize
+            epoch_iter += opt.batchSize
+            model.set_input(data)
+            model.pretrain_G_step()
+            g_loss = model.g_mse_loss
+            if total_steps % opt.print_freq == 0:
+                print("epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(
+                    epoch, i, g_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
+                print("target seq:\n {} \ngenerated seq: {}".format(model.seq_A, model.seq_B_pred))
+            if total_steps % opt.save_latest_freq == 0:
+                print('saving the latest model (epoch %d, total_steps %d)' %
+                      (epoch, total_steps))
+                model.save('latest')
+        print('End of epoch %d / %d \t Time Taken: %d sec' %
+              (epoch, opt.niter + opt.niter_decay, time.time() - epoch_start_time))
 
-    for i, data in enumerate(dataset):
-        iter_start_time = time.time()
-        # visualizer.reset()
-        total_steps += opt.batchSize
-        epoch_iter += opt.batchSize
-        model.set_input(data)
-        model.pretrain_G_step()
-        g_loss = model.g_mse_loss
-        if total_steps % opt.print_freq == 0:
-            print("epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(
-                epoch, i, g_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
-            print("target seq:\n {} \ngenerated seq: {}".format(model.seq_A, model.seq_B_pred))
-        if total_steps % opt.save_latest_freq == 0:
-            print('saving the latest model (epoch %d, total_steps %d)' %
-                  (epoch, total_steps))
-            model.save('latest')
-    print('End of epoch %d / %d \t Time Taken: %d sec' %
-          (epoch, opt.niter + opt.niter_decay, time.time() - epoch_start_time))
+    total_steps = 0
+    print(epochs)
 
-total_steps = 0
+    # pre-train discriminator
+    print('=' * 20 + 'Pre-train Discriminator' + '=' * 20)
+    for epoch in epochs:
+        epoch_start_time = time.time()
+        epoch_iter = 0
 
-print(epochs)
+        for i, data in enumerate(dataset):
+            iter_start_time = time.time()
+            # visualizer.reset()
+            total_steps += opt.batchSize
+            epoch_iter += opt.batchSize
+            model.set_input(data)
+            model.pretrain_D_step()
+            d_loss = model.d_loss
+            if total_steps % opt.print_freq == 0:
+                print("epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(
+                    epoch, i, d_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
+            if total_steps % opt.save_latest_freq == 0:
+                print('saving the latest model (epoch %d, total_steps %d)' %
+                      (epoch, total_steps))
+                model.save('latest')
 
-# pre-train discriminator
-print('=' * 20 + 'Pre-train Discriminator' + '=' * 20)
-for epoch in epochs:
-    epoch_start_time = time.time()
-    epoch_iter = 0
-
-    for i, data in enumerate(dataset):
-        iter_start_time = time.time()
-        # visualizer.reset()
-        total_steps += opt.batchSize
-        epoch_iter += opt.batchSize
-        model.set_input(data)
-        model.pretrain_D_step()
-        d_loss = model.d_loss
-        if total_steps % opt.print_freq == 0:
-            print("epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(
-                epoch, i, d_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
-        if total_steps % opt.save_latest_freq == 0:
-            print('saving the latest model (epoch %d, total_steps %d)' %
-                  (epoch, total_steps))
-            model.save('latest')
-
-    print('End of epoch %d / %d \t Time Taken: %d sec' %
-          (epoch, opt.niter + opt.niter_decay, time.time() - epoch_start_time))
+        print('End of epoch %d / %d \t Time Taken: %d sec' %
+              (epoch, opt.niter + opt.niter_decay, time.time() - epoch_start_time))
+    pass
 
 total_steps = 0
 # adversarial training
@@ -212,7 +210,7 @@ for epoch in epochs:
         total_steps += opt.batchSize
         epoch_iter += opt.batchSize
         model.set_input(data)
-        g_mse_loss = model.optimize_parameters()
+        model.optimize_parameters()
 
         if total_steps % opt.display_freq == 0:
             save_result = total_steps % opt.update_html_freq == 0
@@ -229,7 +227,7 @@ for epoch in epochs:
             errors = model.get_current_errors()
             t = (time.time() - iter_start_time) / opt.batchSize
             print("epoch: {}, iter: {}, g-mse-loss: {}, time: {} seconds/batch".format(
-                epoch, i, g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
+                epoch, i, model.g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
             print(model.get_current_errors())
             print("seq A :\n {} target seq:\n {} \ngenerated seq: {}".format(model.seq_A,model.seq_B, model.seq_B_pred))
             # visualizer.print_current_errors(epoch, epoch_iter, errors, t)

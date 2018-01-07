@@ -277,20 +277,21 @@ class Vid2SeqModel(BaseModel):
             self.optimizer_G_vid.step()
             self.optimizer_E.step()
 
-    def pretrain_D_seq(self):
+    def pretrain_D_step(self):
         # TODO modify acording to pretrain G
-        label_size = list(self.seq_B.size())
-        label_size[2] = 1
-        target_seq_real = Variable(torch.ones(label_size).resize_(label_size[0], label_size[1]))
-        target_seq_fake = Variable(torch.zeros(label_size).resize_(label_size[0], label_size[1]))
         self.forward()
+        fake_cat_seq = torch.cat([self.seq_A, self.seq_B_pred], 1)
+        real_cat_seq = torch.cat([self.seq_A, self.seq_B], 1)
+        
+        label_size = list(fake_cat_seq.size())
+        target_seq_real = Variable(torch.ones(label_size[0], label_size[2]))
+        target_seq_fake = Variable(torch.zeros(label_size[0], label_size[2]))
 
         # warnings.warn("Using a target size ({}) that is different to the input size ({}) is deprecated. "
         #               "Please ensure they have the same size.".format(self.seq_B.size(), target_real.size()))
-        
         if self.opt.train_mode == 'seq_only':
-            self.d_loss = self.netD_seq.batch_bce_loss(self.seq_B.detach().cuda(), target_seq_real.cuda())
-            self.d_loss += self.netD_vid.batch_bce_loss(self.seq_B_pred.detach().cuda(), target_seq_fake.cuda())
+            self.d_loss = self.netD_seq.batch_bce_loss(real_cat_seq.detach().cuda(), target_seq_real.cuda())
+            self.d_loss += self.netD_seq.batch_bce_loss(fake_cat_seq.detach().cuda(), target_seq_fake.cuda())
             self.optimizer_D_seq.zero_grad()
             self.d_loss.backward()
             self.optimizer_D_seq.step()
@@ -304,8 +305,8 @@ class Vid2SeqModel(BaseModel):
             self.optimizer_G_vid.step()
             self.optimizer_E.step()
         else:
-            self.d_loss = self.netD_seq.batch_bce_loss(self.seq_B.detach().cuda(), target_seq_real.cuda())
-            self.d_loss += self.netD_vid.batch_bce_loss(self.seq_B_pred.detach().cuda(), target_seq_fake.cuda())
+            self.d_loss = self.netD_seq.batch_bce_loss(real_cat_seq.detach().cuda(), target_seq_real.cuda())
+            self.d_loss += self.netD_seq.batch_bce_loss(fake_cat_seq.detach().cuda(), target_seq_fake.cuda())
             self.optimizer_D_seq.zero_grad()
             self.d_loss.backward()
             self.optimizer_D_seq.step()

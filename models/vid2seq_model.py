@@ -129,9 +129,6 @@ class Vid2SeqModel(BaseModel):
         # print('seq_A', seq_A.size())
         # print('seq_B', seq_B.size())
 
-
-
-
         # self.input_A.resize_(input_A.size()).copy_(input_A)
         # self.input_B.resize_(input_B.size()).copy_(input_B)
         # self.seq_A.resize_(seq_A.size()).copy_(seq_A)
@@ -154,8 +151,8 @@ class Vid2SeqModel(BaseModel):
         self.real_A = self.input_A
         self.real_B = self.input_B
 
-        #print(inputs["angle"])
-        #print(seq_A)
+        # print(inputs["angle"])
+        # print(seq_A)
 
         #self.seq_B = Variable(self.seq_B)
         # # numpy to torch tensor
@@ -284,16 +281,16 @@ class Vid2SeqModel(BaseModel):
         # TODO modify acording to pretrain G
         label_size = list(self.seq_B.size())
         label_size[2] = 1
-        target_speed_real = Variable(torch.ones(label_size).resize_(label_size[0], label_size[1]))
-        target_speed_fake = Variable(torch.zeros(label_size).resize_(label_size[0], label_size[1]))
+        target_seq_real = Variable(torch.ones(label_size).resize_(label_size[0], label_size[1]))
+        target_seq_fake = Variable(torch.zeros(label_size).resize_(label_size[0], label_size[1]))
         self.forward()
 
         # warnings.warn("Using a target size ({}) that is different to the input size ({}) is deprecated. "
         #               "Please ensure they have the same size.".format(self.seq_B.size(), target_real.size()))
         
         if self.opt.train_mode == 'seq_only':
-            d_loss = self.netD_seq.batch_bce_loss(self.seq_B.detach().cuda(), target_speed_real.cuda())
-            d_loss += self.netD_vid.batch_bce_loss(self.seq_B_pred.detach().cuda(), target_speed_fake.cuda())
+            d_loss = self.netD_seq.batch_bce_loss(self.seq_B.detach().cuda(), target_seq_real.cuda())
+            d_loss += self.netD_vid.batch_bce_loss(self.seq_B_pred.detach().cuda(), target_seq_fake.cuda())
             self.optimizer_D_seq.zero_grad()
             d_loss.backward()
             self.optimizer_D_seq.step()
@@ -307,8 +304,8 @@ class Vid2SeqModel(BaseModel):
             self.optimizer_G_vid.step()
             self.optimizer_E.step()
         else:
-            d_loss = self.netD_seq.batch_bce_loss(self.seq_B.detach().cuda(), target_speed_real.cuda())
-            d_loss += self.netD_vid.batch_bce_loss(self.seq_B_pred.detach().cuda(), target_speed_fake.cuda())
+            d_loss = self.netD_seq.batch_bce_loss(self.seq_B.detach().cuda(), target_seq_real.cuda())
+            d_loss += self.netD_vid.batch_bce_loss(self.seq_B_pred.detach().cuda(), target_seq_fake.cuda())
             self.optimizer_D_seq.zero_grad()
             d_loss.backward()
             self.optimizer_D_seq.step()

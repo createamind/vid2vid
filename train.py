@@ -130,11 +130,12 @@ def save_videos(web_dir, visuals, vid_path, epoch):
 
 
 # pretrain generator
-
-print(range(opt.epoch_count, opt.niter + opt.niter_decay + 1))
+epochs = range(opt.epoch_count, opt.niter + opt.niter_decay + 1)
+print(epochs)
+epochs = range(1)
 
 print('=' * 20 + 'Pre-train Generator' + '=' * 20)
-for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
+for epoch in epochs:
     # for epoch in range(1):
     epoch_start_time = time.time()
     epoch_iter = 0
@@ -155,14 +156,16 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
             print('saving the latest model (epoch %d, total_steps %d)' %
                   (epoch, total_steps))
             model.save('latest')
+    print('End of epoch %d / %d \t Time Taken: %d sec' %
+          (epoch, opt.niter + opt.niter_decay, time.time() - epoch_start_time))
 
 total_steps = 0
 
-print(range(opt.epoch_count, opt.niter + opt.niter_decay + 1))
+print(epochs)
 
 # pre-train discriminator
 print('=' * 20 + 'Pre-train Discriminator' + '=' * 20)
-for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
+for epoch in epochs:
     epoch_start_time = time.time()
     epoch_iter = 0
 
@@ -182,11 +185,13 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
                   (epoch, total_steps))
             model.save('latest')
 
+    print('End of epoch %d / %d \t Time Taken: %d sec' %
+          (epoch, opt.niter + opt.niter_decay, time.time() - epoch_start_time))
+
 total_steps = 0
 # adversarial training
 print('=' * 20 + 'Adversarial Training' + '=' * 20)
-
-for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
+for epoch in epochs:
     epoch_start_time = time.time()
     epoch_iter = 0
 

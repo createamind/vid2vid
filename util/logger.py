@@ -1,10 +1,10 @@
 import tensorflow as tf
 import numpy as np
 import scipy.misc 
-try:
-    from StringIO import StringIO  # Python 2.7
-except ImportError:
-    from io import BytesIO         # Python 3.x
+#try:
+#    from StringIO import StringIO  # Python 2.7
+#except ImportError:
+from io import BytesIO         # Python 3.x
 
 
 class Logger(object):
@@ -24,10 +24,10 @@ class Logger(object):
         img_summaries = []
         for i, img in enumerate(images):
             # Write the image to a string
-            try:
-                s = StringIO()
-            except:
-                s = BytesIO()
+            # try:
+            #    s = StringIO()
+            #except:
+            s = BytesIO()
             scipy.misc.toimage(img).save(s, format="png")
 
             # Create an Image object
@@ -68,3 +68,7 @@ class Logger(object):
         summary = tf.Summary(value=[tf.Summary.Value(tag=tag, histo=hist)])
         self.writer.add_summary(summary, step)
         self.writer.flush()
+
+if __name__ == '__main__':
+    logger = Logger('./tmp_log/')
+    logger.scalar_summary('loss', 0.08, 1)

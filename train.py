@@ -1,3 +1,4 @@
+import tensorflow as tf
 import time, os, cv2
 from options.train_options import TrainOptions
 from data.data_loader import CreateDataLoader
@@ -24,6 +25,7 @@ model = create_model(opt)
 total_steps = 0
 web_dir = os.path.join(opt.results_dir, opt.name, '%s_%s' % (opt.phase, opt.which_epoch))
 log_dir = os.path.join(opt.results_dir, opt.name, 'logs')
+print('logs are written in ' + log_dir)
 logger = Logger(log_dir)
 
 def ck_array(i, o):
@@ -236,7 +238,7 @@ for epoch in epochs:
         model.set_input(data)
         model.optimize_parameters()
 
-        if total_steps % opt.display_freq == 0:
+        if opt.train_mode != 'seq_only' and total_steps % opt.display_freq == 0:
             save_result = total_steps % opt.update_html_freq == 0
 
             visuals = model.get_current_visuals()
@@ -247,7 +249,7 @@ for epoch in epochs:
             # print('process video... %s,progress %d' % (vid_path, i) )
             save_videos(web_dir, visuals, vid_path, epoch)
 
-        if total_steps % opt.print_freq == 0:
+        if opt.train_mode != 'vid_only' and total_steps % opt.print_freq == 0:
             errors = model.get_current_errors()
             t = (time.time() - iter_start_time) / opt.batchSize
             print("epoch: {}, iter: {}, g-mse-loss: {}, time: {} seconds/batch".format(

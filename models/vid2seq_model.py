@@ -137,7 +137,12 @@ class Vid2SeqModel(BaseModel):
         self.input_A = Variable(input_A)
         self.input_B = Variable(input_B)
         self.seq_A = Variable(seq_A)
-        self.seq_B = Variable(seq_B)
+        if self.opt.target_seq == 'A':
+            self.seq_B = Variable(seq_A)
+        elif self.opt.target_seq == 'B':
+            self.seq_B = Variable(seq_B)
+        else:
+            raise ValueError('Not supported target seq')
 
         # convert to cuda
         if self.gpu_ids and torch.cuda.is_available():
@@ -151,32 +156,22 @@ class Vid2SeqModel(BaseModel):
         self.real_A = self.input_A
         self.real_B = self.input_B
 
-        # print(inputs["angle"])
-        # print(seq_A)
 
-        #self.seq_B = Variable(self.seq_B)
-        # # numpy to torch tensor
-        # if is_numpy:
-        #     self.input_vid = torch.from_numpy(self.input_A)
-        #     self.input_seq = torch.from_numpy(input['target_seq'])
-        # else:
-        #     #print(input['A'].size())
-        #     self.input_vid = Variable(torch.from_numpy(input['A'])).float()
-        #     #print(self.input_vid.size())
-        #     self.input_seq = Variable(torch.from_numpy(input["speedX"])).float()
-        # # convert to cuda
-        # if self.gpu_ids and torch.cuda.is_available():
-        #     self.input_vid = self.input_vid.cuda()
-        #     #print(self.input_vid.size())
-        #     self.input_seq = self.input_seq.cuda()
-
+    #def forward(self):
+    #    self.encoded_A = self.netE(self.input_A)
+    #    if self.opt.train_mode != 'seq_only':
+    #        self.fake_B = self.netG_vid(self.encoded_A)
+    #    if self.opt.train_mode != 'vid_only':
+    #        self.seq_B_pred = self.netG_seq(self.encoded_A)
+    #        self.g_mse_loss = self.netG_seq.batch_mse_loss(self.encoded_A, self.seq_B)
+    
     def forward(self):
-        self.encoded_A = self.netE(self.input_A)
+        #self.encoded_A = self.netE(self.input_A)
         if self.opt.train_mode != 'seq_only':
             self.fake_B = self.netG_vid(self.encoded_A)
         if self.opt.train_mode != 'vid_only':
-            self.seq_B_pred = self.netG_seq(self.encoded_A)
-            self.g_mse_loss = self.netG_seq.batch_mse_loss(self.encoded_A, self.seq_B)
+            self.seq_B_pred = self.netG_seq(self.real_A)
+            self.g_mse_loss = self.netG_seq.batch_mse_loss(self.real_A, self.seq_B)
 
     def backward_D(self):
         if self.opt.train_mode != 'seq_only':
@@ -250,7 +245,7 @@ class Vid2SeqModel(BaseModel):
         # print(self.input_vid.size())
         self.forward()
         if self.opt.train_mode == 'seq_only':
-            self.seq_B_pred = self.netG_seq.gen_seq
+            #self.seq_B_pred = self.netG_seq.gen_seq
             self.optimizer_G_seq.zero_grad()
             self.g_mse_loss.backward(retain_graph=True)
             self.optimizer_G_seq.step()
@@ -264,9 +259,9 @@ class Vid2SeqModel(BaseModel):
             self.optimizer_G_vid.step()
             self.optimizer_E.step()
         else:
-            self.seq_B_pred = self.netG_seq.gen_seq
-            self.optimizer_G_seq.zero_grad()
-            self.g_mse_loss.backward(retain_graph=True)
+            # self.seq_B_pred = self.netG_seq.gen_seq
+            # self.optimizer_G_seq.zero_grad()
+            # self.g_mse_loss.backward(retain_graph=True)
 
             self.optimizer_D_vid.zero_grad()
             self.backward_D()
@@ -305,11 +300,11 @@ class Vid2SeqModel(BaseModel):
             self.optimizer_G_vid.step()
             self.optimizer_E.step()
         else:
-            self.d_loss = self.netD_seq.batch_bce_loss(real_cat_seq.detach().cuda(), target_seq_real.cuda())
-            self.d_loss += self.netD_seq.batch_bce_loss(fake_cat_seq.detach().cuda(), target_seq_fake.cuda())
-            self.optimizer_D_seq.zero_grad()
-            self.d_loss.backward()
-            self.optimizer_D_seq.step()
+            #self.d_loss = self.netD_seq.batch_bce_loss(real_cat_seq.detach().cuda(), target_seq_real.cuda())
+            #self.d_loss += self.netD_seq.batch_bce_loss(fake_cat_seq.detach().cuda(), target_seq_fake.cuda())
+            #self.optimizer_D_seq.zero_grad()
+            #self.d_loss.backward()
+            #self.optimizer_D_seq.step()
 
             self.optimizer_D_vid.zero_grad()
             self.backward_D()

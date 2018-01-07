@@ -152,6 +152,9 @@ def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropo
     elif which_model_netG == 'SequenceGenerator':
         netG = SequenceGenerator(input_nc, output_nc, rnn_input_size=196608, norm_layer=norm_layer, ngf=ngf,
                                  use_dropout=use_dropout, n_blocks=1, gpu_ids=gpu_ids)
+    elif which_model_netG == 'SeqRNNGenerator':
+        netG = SeqRNNGenerator(input_nc, output_nc, rnn_input_size=196608, norm_layer=norm_layer, ngf=ngf,
+                                 use_dropout=use_dropout, n_blocks=1, gpu_ids=gpu_ids)
     elif which_model_netG == 'SeqCNNGenerator':
         if input_height is None or input_width is None or sequence_dim is None:
             raise ValueError('Params input_height, input_width and sequence_dim is necessary.')
@@ -702,7 +705,7 @@ class ResnetVideoEncoder(nn.Module):
         super(ResnetVideoEncoder, self).__init__()
         self.input_nc = input_nc
         self.output_nc = output_nc
-        self.ngf = ngf
+        self.ngf = 32
         self.gpu_ids = gpu_ids
         if type(norm_layer) == functools.partial:
             use_bias = norm_layer.func == nn.InstanceNorm3d
@@ -723,7 +726,7 @@ class ResnetVideoEncoder(nn.Module):
                       nn.ReLU(True)]
 
         mult = 2 ** n_downsampling
-        for i in range(n_blocks):
+        for i in range(2):
             model += [ResnetBlock_3d(ngf * mult, padding_type=padding_type, norm_layer=norm_layer,
                                      use_dropout=use_dropout, use_bias=use_bias),
                       ]
@@ -780,6 +783,67 @@ class ResnetVideoGenerator(nn.Module):
             return nn.parallel.data_parallel(self.model, inp, self.gpu_ids)
         else:
             return self.model(inp)
+
+class SeqRNNGenerator(nn.Module):
+    def __init__(self, input_nc, output_nc, num_downs=8, rnn_input_size=48576, rnn_hidden_size=300, rnn_num_layers=6,
+                 rnn_bidirectional=False, ngf=64, norm_layer=nn.BatchNorm2d, target_size=1,
+                 use_dropout=False, n_blocks=1, gpu_ids=None, padding_type='reflect'):
+        assert (n_blocks >= 0)
+
+        super(SeqRNNGenerator, self).__init__()
+        self.input_nc = input_nc
+        self.output_nc = output_nc
+        self.rnn_input_size = rnn_input_size  # 194304  196608   #之前这里是  48576 不知道哪里调整后这里变大了很多。rnn参数修改后还是大5倍
+        self.rnn_hidden_size = rnn_hidden_size
+        self.target_size = target_size
+        self.rnn_num_layers = rnn_num_layers
+        self.rnn_bidirectional = rnn_bidirectional
+        self.ngf = ngf
+        self.gpu_ids = gpu_ids
+
+        # Sequence Generator
+        self.rnn_generator = nn.LSTM(input_size=self.rnn_input_size, hidden_size=self.rnn_hidden_size,
+                                     num_layers=self.rnn_num_layers, bidirectional=self.rnn_bidirectional,
+                                     batch_first=True)
+        self.rnn2out = nn.Linear(self.rnn_hidden_size, self.target_size)
+
+    def forward(self, inp):
+        # if self.gpu_ids and isinstance(input_vid, torch.cuda.FloatTensor):
+        # encoded_vid = nn.parallel.data_parallel(self.video_encoder, input_vid, self.gpu_ids)
+        # self.gen_vid = nn.parallel.data_parallel(self.rnn_generator, inp, self.gpu_ids)
+        # concat real vid with gen vid, then feed to rnn
+        # rnn_input = torch.cat([input_vid, self.gen_vid], dim=1)  # concat along channel dim
+
+        ##?? input to rnn use input_A or encoded_vid????
+        rnn_outs, _ = nn.parallel.data_parallel(self.rnn_generator, inp.view(1, inp.size()[2], -1),
+                                                self.gpu_ids)
+        self.gen_seq = nn.parallel.data_parallel(self.rnn2out, rnn_outs, self.gpu_ids)
+        return self.gen_seq
+        # else:
+        #     raise NotImplementedError('cpu  data [%s] is not complete implemented')
+        #     encoded_vid = self.video_encoder(input_vid)
+        #     self.gen_vid = self.video_gen(encoded_vid)
+        #     rnn_input = torch.cat([input_vid, self.gen_vid], dim=1)  # concat along channel dim
+        #     rnn_outs, _ = self.rnn_generator(rnn_input.view(1, rnn_input.size()[2], -1))
+        #     self.gen_seq = self.rnn2out(rnn_outs)
+        #     return self.gen_vid, self.gen_seq
+
+    def batch_mse_loss(self, inp, target):
+        """
+        Returns the MSE Loss for predicting target sequence.
+        Inputs: input, target
+            - input: batch_size x depth x seq_len
+            - target: batch_size x depth x seq_len
+            inp should be target with <s> (start letter) prepended
+        """
+
+        loss_fn = nn.MSELoss()
+        self.forward(inp)
+        loss = loss_fn(self.gen_seq, target)
+        return loss  # per batch
+
+
+
 
 
 class SequenceGenerator(nn.Module):

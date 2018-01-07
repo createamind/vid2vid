@@ -26,5 +26,12 @@ python train.py --dataset_mode v --model vid2seq_model --which_model_netG Sequen
 
 
 
+python train.py --dataset_mode v --model vid2seq_model --which_direction AtoB --norm batch --niter 10 --niter_decay 10 --batchSize 1 --name
+modular-test-1 --depth 30 --max_dataset_size 10000 --output_nc 3 --input_nc 3 --sensor_types angle,speedX,action --data_dir '/data/dataset/torcs_data/**/' --input_num 2 --gpu_ids
+ 0 --print_freq 10
 
+
+python train.py --dataset_mode v --model vid2seq_model --which_direction AtoB --norm batch --niter 10 --niter_decay 10 --batchSize 1 --name adversarial-speedB-test-1 --depth 30 --max_dataset_size 5000 --output_nc 3 --input_nc 3 --sensor_types angle,speedX,action --data_dir '/data/dataset/torcs_data/**/' --input_num 2 --gpu_ids 0 --print_freq 10
+
+CUDA_VISIBLE_DEVICES=0
 

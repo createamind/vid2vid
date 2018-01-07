@@ -145,11 +145,12 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
         total_steps += opt.batchSize
         epoch_iter += opt.batchSize
         model.set_input(data)
+        model.pretrain_G_step()
         g_loss = model.g_mse_loss
         if total_steps % opt.print_freq == 0:
             print("epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(
                 epoch, i, g_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
-            print("target seq:\n {} \ngenerated seq: {}".format(model.input_seq, model.gen_seq))
+            print("target seq:\n {} \ngenerated seq: {}".format(model.seq_A, model.seq_B_pred))
         if total_steps % opt.save_latest_freq == 0:
             print('saving the latest model (epoch %d, total_steps %d)' %
                   (epoch, total_steps))
@@ -171,7 +172,8 @@ for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):
         total_steps += opt.batchSize
         epoch_iter += opt.batchSize
         model.set_input(data)
-        d_loss = model.pretrain_D_step()
+        model.pretrain_D_step()
+        d_loss = model.d_loss
         if total_steps % opt.print_freq == 0:
             print("epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(
                 epoch, i, d_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))

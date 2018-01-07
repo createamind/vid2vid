@@ -198,10 +198,10 @@ class Vid2SeqModel(BaseModel):
             self.pred_real_seq = self.netD_seq(real_cat_seq.detach())
             self.loss_D_real_seq = self.criterionGAN(self.pred_real_seq, True)
 
-        if slef.opt.train_mode == 'vid_only':
+        if self.opt.train_mode == 'vid_only':
             self.loss_D_fake = self.loss_D_fake_vid
             self.loss_D_real = self.loss_D_real_vid
-        elif slef.opt.train_mode == 'seq_only':
+        elif self.opt.train_mode == 'seq_only':
             self.loss_D_fake = self.loss_D_fake_seq
             self.loss_D_real = self.loss_D_real_seq
         else:
@@ -252,8 +252,8 @@ class Vid2SeqModel(BaseModel):
         if self.opt.train_mode == 'seq_only':
             self.seq_B_pred = self.netG_seq.gen_seq
             self.optimizer_G_seq.zero_grad()
-	    self.g_mse_loss.backward(retain_graph=True)
-	    self.optimizer_G_seq.step()
+            self.g_mse_loss.backward(retain_graph=True)
+            self.optimizer_G_seq.step()
         elif self.opt.train_mode == 'vid_only':
             self.optimizer_D_vid.zero_grad()
             self.backward_D()
@@ -289,10 +289,10 @@ class Vid2SeqModel(BaseModel):
         #               "Please ensure they have the same size.".format(self.seq_B.size(), target_real.size()))
         
         if self.opt.train_mode == 'seq_only':
-            d_loss = self.netD_seq.batch_bce_loss(self.seq_B.detach().cuda(), target_seq_real.cuda())
-            d_loss += self.netD_vid.batch_bce_loss(self.seq_B_pred.detach().cuda(), target_seq_fake.cuda())
+            self.d_loss = self.netD_seq.batch_bce_loss(self.seq_B.detach().cuda(), target_seq_real.cuda())
+            self.d_loss += self.netD_vid.batch_bce_loss(self.seq_B_pred.detach().cuda(), target_seq_fake.cuda())
             self.optimizer_D_seq.zero_grad()
-            d_loss.backward()
+            self.d_loss.backward()
             self.optimizer_D_seq.step()
         elif self.opt.train_mode == 'vid_only':
             self.optimizer_D_vid.zero_grad()
@@ -304,10 +304,10 @@ class Vid2SeqModel(BaseModel):
             self.optimizer_G_vid.step()
             self.optimizer_E.step()
         else:
-            d_loss = self.netD_seq.batch_bce_loss(self.seq_B.detach().cuda(), target_seq_real.cuda())
-            d_loss += self.netD_vid.batch_bce_loss(self.seq_B_pred.detach().cuda(), target_seq_fake.cuda())
+            self.d_loss = self.netD_seq.batch_bce_loss(self.seq_B.detach().cuda(), target_seq_real.cuda())
+            self.d_loss += self.netD_vid.batch_bce_loss(self.seq_B_pred.detach().cuda(), target_seq_fake.cuda())
             self.optimizer_D_seq.zero_grad()
-            d_loss.backward()
+            self.d_loss.backward()
             self.optimizer_D_seq.step()
 
             self.optimizer_D_vid.zero_grad()

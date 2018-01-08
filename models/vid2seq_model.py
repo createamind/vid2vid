@@ -122,9 +122,19 @@ class Vid2SeqModel(BaseModel):
         self.real_B = self.input_B
 
         if opt.debug :
+            print('inputs["focus"]')
+            print(inputs["focus"])
+            print('inputs["angle"]')
+            print(inputs["angle"])
+            print('inputs["track"]')
+            print(inputs["track"])
+            print('inputs["speedX"]')
+            print(inputs["speedX"])
+            print('inputs["action"]')
             print(inputs["action"])
-            print(self.action_A)
-            print(self.action_B)
+
+            # print(self.action_A)
+            # print(self.action_B)
 
     def forward(self):
         self.fake_B, self.action_B_pred = self.netG(self.input_A)

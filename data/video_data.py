@@ -64,7 +64,9 @@ class VideoDataset(BaseDataset):
         #print("AB",AB.shape)
         if self.opt.sensor_types:
             S = ABS[1]
-
+            print('=' * 20 + ' data video A ABS SSSSSS ' + '=' * 20)
+            print(S.shape)
+            print(S)
 
             sensor_data = get_sensor(S,self.opt.sensor_types)
             # print("sensor data",sensor_data.action,sensor_data.action.shape)
@@ -79,7 +81,7 @@ class VideoDataset(BaseDataset):
         # print("====== load B size ==== {0}".format(B.shape))
         # return {'A': A, 'B': B,"speedX":sensor_data.speedX,
         #         'A_paths': AB_path, 'B_paths': AB_path}
-        return {'A': A, 'B': B, "speedX": sensor_data.speedX,"action":sensor_data.action,"angle":sensor_data.angle,
+        return {'A': A, 'B': B, "speedX": sensor_data.speedX,"action":sensor_data.action,"angle":sensor_data.angle,"focus":sensor_data.focus,"track":sensor_data.track,
                 'A_paths': AB_path, 'B_paths': AB_path}
 
     def __len__(self):

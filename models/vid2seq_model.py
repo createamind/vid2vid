@@ -166,8 +166,8 @@ class Vid2SeqModel(BaseModel):
     #        self.g_mse_loss = self.netG_seq.batch_mse_loss(self.encoded_A, self.seq_B)
     
     def forward(self):
-        #self.encoded_A = self.netE(self.input_A)
         if self.opt.train_mode != 'seq_only':
+            self.encoded_A = self.netE(self.input_A)
             self.fake_B = self.netG_vid(self.encoded_A)
         if self.opt.train_mode != 'vid_only':
             self.seq_B_pred = self.netG_seq(self.real_A)

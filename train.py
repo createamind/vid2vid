@@ -151,7 +151,7 @@ for tag, value in net.named_parameters():
 # pretrain generator
 epochs = range(opt.epoch_count, (opt.niter + opt.niter_decay + 1)*3)
 print(epochs)
-# epochs = range(1)
+
 if opt.pretrain:
     print('=' * 20 + 'Pre-train Generator' + '=' * 20)
     for epoch in epochs:
@@ -168,12 +168,15 @@ if opt.pretrain:
             model.pretrain_G_step()
 
             if total_steps % opt.print_freq == 0:
-                print("pretrain epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(
-                    epoch, i, model.g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
-                print("target seq:\n {} \ngenerated seq: {}".format(model.seq_A, model.seq_B_pred))
-                
-
-                logger.scalar_summary('G__mse_loss', model.g_mse_loss.data[0], total_steps + 1)
+                if opt.train_mode != 'vid_only':
+                    print("pretrain epoch: {}, iter: {}, g_mse_loss: {}, time: {} seconds/batch".format(
+                        epoch, i, model.g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
+                    print("target seq:\n {} \ngenerated seq: {}".format(model.seq_A, model.seq_B_pred))
+                    logger.scalar_summary('G__mse_loss', model.g_mse_loss.data[0], total_steps + 1)
+                else:
+                    print("pretrain epoch: {}, iter: {}, g_GAN_loss: {}, time: {} seconds/batch".format(
+                        epoch, i, model.loss_G_GAN.data[0], (time.time() - iter_start_time) / opt.batchSize))
+                    logger.scalar_summary('G_GAN_loss', model.loss_G_GAN.data[0], total_steps + 1)
 
             if total_steps % opt.save_latest_freq == 0:
                 print('saving the latest model (epoch %d, total_steps %d)' %
@@ -250,20 +253,24 @@ for epoch in epochs:
             # print('process video... %s,progress %d' % (vid_path, i) )
             save_videos(web_dir, visuals, vid_path, epoch)
 
-        if opt.train_mode != 'vid_only' and total_steps % opt.print_freq == 0:
+        if total_steps % opt.print_freq == 0:
             #errors = model.get_current_errors()
             t = (time.time() - iter_start_time) / opt.batchSize
-            print("Adversarial epoch: {}, iter: {}, g-mse-loss: {}, time: {} seconds/batch".format(
-                epoch, i, model.g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
-
-            logger.scalar_summary('G__mse_loss', model.g_mse_loss.data[0], total_steps+1)
+            if opt.train_mode != 'vid_only':
+                print("Adversarial epoch: {}, iter: {}, g-mse-loss: {}, time: {} seconds/batch".format(
+                    epoch, i, model.g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
+                logger.scalar_summary('G__mse_loss', model.g_mse_loss.data[0], total_steps+1)
+                print("seq A :\n {} target seq:\n {} \ngenerated seq: {}".format(model.seq_A,model.seq_B, model.seq_B_pred))
+            else:
+                print("Adversarial epoch: {}, iter: {}, g-GAN-loss: {}, time: {} seconds/batch".format(
+                                        epoch, i, model.loss_G_GAN.data[0], (time.time() - iter_start_time) / opt.batchSize))
             logger.scalar_summary('adversarial_D_fake_loss', model.loss_D_fake.data[0], total_steps + 1)
             logger.scalar_summary('adversarial_D_real_loss', model.loss_D_real.data[0], total_steps + 1)
-            logger.scalar_summary('adversarial_G_L1_loss', model.loss_G_L1, total_steps + 1)
-            logger.scalar_summary('adversarial_G_GAN_loss', model.loss_G_GAN, total_steps + 1)
+            logger.scalar_summary('adversarial_G_L1_loss', model.loss_G_L1.data[0], total_steps + 1)
+            logger.scalar_summary('adversarial_G_GAN_loss', model.loss_G_GAN.data[0], total_steps + 1)
 
-            #print(model.get_current_errors())
-            print("seq A :\n {} target seq:\n {} \ngenerated seq: {}".format(model.seq_A,model.seq_B, model.seq_B_pred))
+            # print(model.get_current_errors())
+            # print("seq A :\n {} target seq:\n {} \ngenerated seq: {}".format(model.seq_A,model.seq_B, model.seq_B_pred))
             # visualizer.print_current_errors(epoch, epoch_iter, errors, t)
             # if opt.display_id > 0:
             # visualizer.plot_current_errors(epoch, float(epoch_iter)/dataset_size, opt, errors)

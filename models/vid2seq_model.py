@@ -228,6 +228,8 @@ class Vid2SeqModel(BaseModel):
             self.loss_G_L1_seq = self.criterionL1(self.seq_B_pred, self.seq_B) * self.opt.lambda_A
             self.loss_G_L1_seq.backward(retain_graph=True)
 
+
+
        
         if self.opt.train_mode == 'seq_only':
             self.loss_G_GAN = self.loss_G_GAN_seq
@@ -333,7 +335,22 @@ class Vid2SeqModel(BaseModel):
         self.optimizer_E.step()
 
     def get_current_errors(self):
-        return OrderedDict([('G_GAN', self.loss_G_GAN.data[0]),
+        if self.opt.train_mode != 'seq_only':
+            return OrderedDict([('G_GAN', self.loss_G_GAN.data[0]),
+                            ('self.loss_G_GAN_vid', self.loss_G_GAN_vid.data[0]),
+                            ('self.loss_G_GAN_seq', self.loss_G_GAN_seq.data[0]),
+                            ('G_L1', self.loss_G_L1.data[0]),
+                            ('self.loss_G_L1_vid', self.loss_G_L1_vid.data[0]),
+                            ('self.loss_G_L1_seq', self.loss_G_L1_seq.data[0]),
+                            ('D_real', self.loss_D_real.data[0]),
+                            ('self.loss_D_real_vid', self.loss_D_real_vid.data[0]),
+                            ('self.loss_D_real_seq', self.loss_D_real_seq.data[0]),
+                            ('D_fake', self.loss_D_fake.data[0]),
+                            ('self.loss_D_fake_vid', self.loss_D_fake_vid.data[0]),
+                            ('self.loss_D_fake_seq', self.loss_D_fake_seq.data[0])
+                            ])
+        else:
+            return OrderedDict([('G_GAN', self.loss_G_GAN.data[0]),
                             ('self.loss_G_GAN_vid', self.loss_G_GAN_vid.data[0]),
                             ('self.loss_G_GAN_seq', self.loss_G_GAN_seq.data[0]),
                             ('G_L1', self.loss_G_L1.data[0]),

@@ -149,7 +149,7 @@ for tag, value in net.named_parameters():
 '''
 
 # pretrain generator
-epochs = range(opt.epoch_count, opt.niter + opt.niter_decay + 1)
+epochs = range(opt.epoch_count, (opt.niter + opt.niter_decay + 1)*3)
 print(epochs)
 # epochs = range(1)
 if opt.pretrain:
@@ -168,7 +168,7 @@ if opt.pretrain:
             model.pretrain_G_step()
             g_loss = model.g_mse_loss
             if total_steps % opt.print_freq == 0:
-                print("epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(
+                print("pretrain epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(
                     epoch, i, g_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
                 print("target seq:\n {} \ngenerated seq: {}".format(model.seq_A, model.seq_B_pred))
                 
@@ -198,7 +198,7 @@ if opt.pretrain:
             model.pretrain_D_step()
             d_loss = model.d_loss
             if total_steps % opt.print_freq == 0:
-                print("epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(
+                print("pretrain epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(
                     epoch, i, d_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
 
                 logger.scalar_summary('pretrain_D_seq_loss', d_loss.data[0], total_steps+1)
@@ -250,14 +250,14 @@ for epoch in epochs:
             save_videos(web_dir, visuals, vid_path, epoch)
 
         if opt.train_mode != 'vid_only' and total_steps % opt.print_freq == 0:
-            errors = model.get_current_errors()
+            #errors = model.get_current_errors()
             t = (time.time() - iter_start_time) / opt.batchSize
-            print("epoch: {}, iter: {}, g-mse-loss: {}, time: {} seconds/batch".format(
+            print("Adversarial epoch: {}, iter: {}, g-mse-loss: {}, time: {} seconds/batch".format(
                 epoch, i, model.g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
 
             logger.scalar_summary('adversarial_G_seq_loss', model.g_mse_loss.data[0], total_steps+1)
 
-            print(model.get_current_errors())
+            #print(model.get_current_errors())
             print("seq A :\n {} target seq:\n {} \ngenerated seq: {}".format(model.seq_A,model.seq_B, model.seq_B_pred))
             # visualizer.print_current_errors(epoch, epoch_iter, errors, t)
             # if opt.display_id > 0:

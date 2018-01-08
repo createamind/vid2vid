@@ -33,5 +33,12 @@ modular-test-1 --depth 30 --max_dataset_size 10000 --output_nc 3 --input_nc 3 --
 
 python train.py --dataset_mode v --model vid2seq_model --which_direction AtoB --norm batch --niter 10 --niter_decay 10 --batchSize 1 --name adversarial-speedB-test-1 --depth 30 --max_dataset_size 5000 --output_nc 3 --input_nc 3 --sensor_types angle,speedX,action --data_dir '/data/dataset/torcs_data/**/' --input_num 2 --gpu_ids 0 --print_freq 10
 
-CUDA_VISIBLE_DEVICES=0
+python train.py --dataset_mode v --model vid2seq_model --which_model_netG_seq SeqRNNGenerator --which_direction AtoB --norm batch --niter 10 --niter_decay 10 --batchSize 1 --name adversarial-speedB-rnn-test-1 --depth 30 --max_dataset_size 5000 --output_nc 3 --input_nc 3 --sensor_types angle,speedX,action --data_dir '/data/dataset/torcs_data/**/' --input_num 2 --gpu_ids 1 --print_freq 50 --train_mode seq_only
 
+python train.py --dataset_mode v --model vid2seq_model --which_model_netG_seq SeqRNNGenerator --which_direction AtoB --norm batch --niter 10 --niter_decay 10 --batchSize 1 --name adversarial-speedB-rnn-test-1 --depth 30 --max_dataset_size 5000 --output_nc 3 --input_nc 3 --sensor_types angle,speedX,action --data_dir '/data/dataset/torcs_data/**/' --input_num 2 --gpu_ids 1 --print_freq 50 --train_mode seq_only  --continue_train
+
+python train.py --dataset_mode v --model vid2seq_model --which_model_netG_seq SeqRNNGenerator --which_direction AtoB --norm batch --niter 10 --niter_decay 10 --batchSize 1 --name temptest --depth 30 --max_dataset_size 5000 --output_nc 3 --input_nc 3 --sensor_types angle,speedX,action --data_dir '/data/dataset/torcs_data/**/' --input_num 2 --gpu_ids 1 --print_freq 1 --train_mode seq_only --display_freq 1 --pretrain True
+
+
+CUDA_VISIBLE_DEVICES=0
+sudo nvidia-smi -i 1 -pl 350

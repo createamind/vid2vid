@@ -8,7 +8,7 @@ class TrainOptions(BaseOptions):
         self.parser.add_argument('--display_single_pane_ncols', type=int, default=0, help='if positive, display all images in a single visdom web panel with certain number of images per row.')
         self.parser.add_argument('--update_html_freq', type=int, default=1000, help='frequency of saving training results to html')
         self.parser.add_argument('--print_freq', type=int, default=225, help='frequency of showing training results on console')
-        self.parser.add_argument('--save_latest_freq', type=int, default=5000, help='frequency of saving the latest results')
+        self.parser.add_argument('--save_latest_freq', type=int, default=2500, help='frequency of saving the latest results')
         self.parser.add_argument('--save_epoch_freq', type=int, default=1, help='frequency of saving checkpoints at the end of epochs')
         self.parser.add_argument('--continue_train', action='store_true', help='continue training: load the latest model')
         self.parser.add_argument('--epoch_count', type=int, default=1, help='the starting epoch count, we save the model by <epoch_count>, <epoch_count>+<save_latest_freq>, ...')
@@ -35,7 +35,7 @@ class TrainOptions(BaseOptions):
         self.parser.add_argument('--overlap', type=int, default=75, help='how many frames B will have as same as A')
         self.parser.add_argument('--train_mode', type=str, default='both', help='training mode: vid_only, seq_only or both')
         self.parser.add_argument('--seq_type', type=str, default='speedX', help='training sequence type: speedX, angle or action')
-        self.parser.add_argument('--pretrain', type=bool, default=False, help='enable pretraining of Gs and Ds, followed by adversarial training')
+        self.parser.add_argument('--pretrain', action='store_true', help='enable pretraining of Gs and Ds, followed by adversarial training')
         self.parser.add_argument('--target_seq', type=str, default='A', help='Target of sequence generator')
 
         self.isTrain = True

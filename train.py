@@ -8,6 +8,9 @@ import ntpath
 import numpy as np
 import skvideo.io
 import time
+from torch.autograd import Variable
+
+
 
 output_video = False
 opt = TrainOptions().parse()
@@ -253,6 +256,7 @@ for epoch in epochs:
             # print('process video... %s,progress %d' % (vid_path, i) )
             save_videos(web_dir, visuals, vid_path, epoch)
 
+
         if total_steps % opt.print_freq == 0:
             #errors = model.get_current_errors()
             t = (time.time() - iter_start_time) / opt.batchSize
@@ -261,9 +265,12 @@ for epoch in epochs:
                     epoch, i, model.g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
                 logger.scalar_summary('G__mse_loss', model.g_mse_loss.data[0], total_steps+1)
                 print("seq A :\n {} target seq:\n {} \ngenerated seq: {}".format(model.seq_A,model.seq_B, model.seq_B_pred))
+
             else:
                 print("Adversarial epoch: {}, iter: {}, g-GAN-loss: {}, time: {} seconds/batch".format(
                                         epoch, i, model.loss_G_GAN.data[0], (time.time() - iter_start_time) / opt.batchSize))
+
+
             logger.scalar_summary('adversarial_D_fake_loss', model.loss_D_fake.data[0], total_steps + 1)
             logger.scalar_summary('adversarial_D_real_loss', model.loss_D_real.data[0], total_steps + 1)
             logger.scalar_summary('adversarial_G_L1_loss', model.loss_G_L1.data[0], total_steps + 1)

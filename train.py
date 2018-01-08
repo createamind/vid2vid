@@ -166,13 +166,14 @@ if opt.pretrain:
             epoch_iter += opt.batchSize
             model.set_input(data)
             model.pretrain_G_step()
-            g_loss = model.g_mse_loss
+
             if total_steps % opt.print_freq == 0:
                 print("pretrain epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(
-                    epoch, i, g_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
+                    epoch, i, model.g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
                 print("target seq:\n {} \ngenerated seq: {}".format(model.seq_A, model.seq_B_pred))
                 
-                logger.scalar_summary('pretrain_G_seq_loss', g_loss.data[0], total_steps+1)
+
+                logger.scalar_summary('G__mse_loss', model.g_mse_loss.data[0], total_steps + 1)
 
             if total_steps % opt.save_latest_freq == 0:
                 print('saving the latest model (epoch %d, total_steps %d)' %
@@ -255,7 +256,11 @@ for epoch in epochs:
             print("Adversarial epoch: {}, iter: {}, g-mse-loss: {}, time: {} seconds/batch".format(
                 epoch, i, model.g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
 
-            logger.scalar_summary('adversarial_G_seq_loss', model.g_mse_loss.data[0], total_steps+1)
+            logger.scalar_summary('G__mse_loss', model.g_mse_loss.data[0], total_steps+1)
+            logger.scalar_summary('adversarial_D_fake_loss', model.loss_D_fake.data[0], total_steps + 1)
+            logger.scalar_summary('adversarial_D_real_loss', model.loss_D_real.data[0], total_steps + 1)
+            logger.scalar_summary('adversarial_G_L1_loss', model.loss_G_L1, total_steps + 1)
+            logger.scalar_summary('adversarial_G_GAN_loss', model.loss_G_GAN, total_steps + 1)
 
             #print(model.get_current_errors())
             print("seq A :\n {} target seq:\n {} \ngenerated seq: {}".format(model.seq_A,model.seq_B, model.seq_B_pred))

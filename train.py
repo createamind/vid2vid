@@ -28,6 +28,7 @@ model = create_model(opt)
 total_steps = 0
 web_dir = os.path.join(opt.results_dir, opt.name, '%s_%s' % (opt.phase, opt.which_epoch))
 log_dir = os.path.join(opt.results_dir, opt.name, 'logs')
+seq_log_file = os.path.join(log_dir, 'sequences_logging.txt')
 print('logs are written in ' + log_dir)
 logger = Logger(log_dir)
 
@@ -157,6 +158,8 @@ print(epochs)
 
 if opt.pretrain:
     print('=' * 20 + 'Pre-train Generator' + '=' * 20)
+    with open(seq_log_file, 'a') as f:
+        f.write('=' * 20 + 'Pre-train Generator' + '=' * 20)
     for epoch in epochs:
         # for epoch in range(1):
         epoch_start_time = time.time()
@@ -176,6 +179,8 @@ if opt.pretrain:
                         epoch, i, model.g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
                     print("target seq:\n {} \ngenerated seq: {}".format(model.seq_A, model.seq_B_pred))
                     logger.scalar_summary('G__mse_loss', model.g_mse_loss.data[0], total_steps + 1)
+                    with open(seq_log_file, 'a') as f:
+                        f.write("pretain:: target seq:\n {} \ngenerated seq: {}\n".format(model.seq_A.data, model.seq_B_pred.data))
                 else:
                     print("pretrain epoch: {}, iter: {}, g_GAN_loss: {}, time: {} seconds/batch".format(
                         epoch, i, model.loss_G_GAN.data[0], (time.time() - iter_start_time) / opt.batchSize))
@@ -222,6 +227,10 @@ if opt.pretrain:
 total_steps = 0
 # adversarial training
 print('=' * 20 + 'Adversarial Training' + '=' * 20)
+
+with open(seq_log_file, 'a') as f:
+    f.write('=' * 20 + 'Adversarial Training' + '=' * 20)
+
 for epoch in epochs:
     epoch_start_time = time.time()
     epoch_iter = 0
@@ -265,7 +274,8 @@ for epoch in epochs:
                     epoch, i, model.g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
                 logger.scalar_summary('G__mse_loss', model.g_mse_loss.data[0], total_steps+1)
                 print("seq A :\n {} target seq:\n {} \ngenerated seq: {}".format(model.seq_A,model.seq_B, model.seq_B_pred))
-
+                with open(seq_log_file, 'a') as f:
+                    f.write("seq A :\n {} target seq:\n {} \ngenerated seq: {}\n".format(model.seq_A.data,model.seq_B.data, model.seq_B_pred.data))
             else:
                 print("Adversarial epoch: {}, iter: {}, g-GAN-loss: {}, time: {} seconds/batch".format(
                                         epoch, i, model.loss_G_GAN.data[0], (time.time() - iter_start_time) / opt.batchSize))

@@ -123,8 +123,8 @@ class Vid2SeqModel(BaseModel):
         # print("======input A SIZE==== {0}".format(input_A.size()))
         input_B = torch.from_numpy(inputs['B' if AtoB else 'A']).float()
         # speedX = torch.from_numpy(inputs["speedX"])  # with the length lX = lA + lB
-        seq_A = torch.from_numpy(np.split(inputs[self.opt.seq_type], 2, axis=1)[0]).float()*100
-        seq_B = torch.from_numpy(np.split(inputs[self.opt.seq_type], 2, axis=1)[1]).float()*100
+        seq_A = torch.from_numpy(np.split(inputs[self.opt.seq_type], 2, axis=1)[0]).float()
+        seq_B = torch.from_numpy(np.split(inputs[self.opt.seq_type], 2, axis=1)[1]).float()
         # print('*' * 20 + ' set inputs, shapes:')
         # print('seq_A', seq_A.size())
         # print('seq_B', seq_B.size())

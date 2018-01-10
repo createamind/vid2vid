@@ -42,3 +42,17 @@ python train.py --dataset_mode v --model vid2seq_model --which_model_netG_seq Se
 
 CUDA_VISIBLE_DEVICES=0
 sudo nvidia-smi -i 1 -pl 350
+
+#one env
+
+python train.py --dataset_mode v --model vid2seq_model --which_model_netG_seq SeqRNNGenerator --which_direction AtoB --norm batch --niter 10 --niter_decay 10 --batchSize 1 --name supervised-speedA-rnn-oneenv-test-1 --depth 30 --max_dataset_size 5000 --output_nc 3 --input_nc 3 --sensor_types angle,speedX,action --data_dir /data/dataset/torcs-onebigenv-data/aalborg/ --input_num 2 --gpu_ids 2 --train_mode seq_only --print_freq 21 --pretrain
+
+###18.1.10
+ 2049  mv  2[0-9][0-9][0-9][0-9].*  ../aalborg2.2/
+  2050  mv  3[0-9][0-9][0-9][0-9].*  ../aalborg2.3/
+   2051  mv  1[0-9][0-9][0-9][0-9].*  ../aalborg2.1/
+python train.py --dataset_mode v --model vid2seq_model --which_model_netG_seq SeqRNNGenerator --which_direction AtoB --norm batch --niter 10 --niter_decay 10 --batchSize 1 --name supervised-speedA-rnn-oneenv-moredirsplit-test-1 --depth 30 --max_dataset_size 5000 --output_nc 3 --input_nc 3 --sensor_types angle,speedX,action --data_dir /data/dataset/torcs-onebigenv-data/**/ --input_num 2 --gpu_ids 2 --train_mode seq_only --print_freq 21 --pretrain
+
+
+
+

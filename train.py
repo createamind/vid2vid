@@ -173,20 +173,19 @@ if opt.pretrain:
             model.set_input(data)
             model.pretrain_G_step()
 
-            #minierror = (minierror,model.g_mse_loss.data[0]).min
+            #if loss big train for ever
             if minierror > model.g_mse_loss.data[0] :
                 minierror = model.g_mse_loss.data[0]
-            while ( model.g_mse_loss.data[0] >  ( minierror * 10 )):
+            while ( model.g_mse_loss.data[0] >  ( minierror * 1000 )):
                 model.pretrain_G_step()
-                print("minierror",model.g_mse_loss.data[0])
-
-
+                print("minierror",minierror, "now mse loss" ,model.g_mse_loss.data[0])
+                total_steps += 1
 
 
             if total_steps % opt.print_freq == 0:
                 if opt.train_mode != 'vid_only':
-                    print("pretrain epoch: {}, iter: {}, g_mse_loss: {}, time: {} seconds/batch".format(
-                        epoch, i, model.g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
+                    print("pretrain epoch: {}, iter: {}, g_mse_loss: {}, time: {} seconds/batch  \n minierror".format(
+                        epoch, i, model.g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize, minierror ))
                     print("target seq:\n {} \ngenerated seq: {}".format(model.seq_A, model.seq_B_pred))
                     logger.scalar_summary('G__mse_loss', model.g_mse_loss.data[0], total_steps + 1)
                     with open(seq_log_file, 'a') as f:

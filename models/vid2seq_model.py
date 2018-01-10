@@ -44,7 +44,7 @@ class Vid2SeqModel(BaseModel):
                                         opt.norm, not opt.no_dropout, opt.init_type, self.gpu_ids)
 
         self.netG_seq = networks.define_G(opt.input_nc, opt.output_nc, opt.ngf, opt.which_model_netG_seq, 
-                                        opt.norm, not opt.no_dropout, opt.init_type, self.gpu_ids, input_height=64, input_width=64, sequence_dim=1)
+                                        opt.norm, not opt.no_dropout, opt.init_type, self.gpu_ids, input_height=64, input_width=64, sequence_dim=2)
 
         if self.isTrain:
             use_sigmoid = opt.no_lsgan

@@ -155,7 +155,7 @@ for tag, value in net.named_parameters():
 # pretrain generator
 epochs = range(opt.epoch_count, (opt.niter + opt.niter_decay + 1)*3)
 print(epochs)
-
+minierror = 1000000
 if opt.pretrain:
     print('=' * 20 + 'Pre-train Generator' + '=' * 20)
     with open(seq_log_file, 'a') as f:
@@ -172,6 +172,16 @@ if opt.pretrain:
             epoch_iter += opt.batchSize
             model.set_input(data)
             model.pretrain_G_step()
+
+            #minierror = (minierror,model.g_mse_loss.data[0]).min
+            if minierror > model.g_mse_loss.data[0] :
+                minierror = model.g_mse_loss.data[0]
+            while ( model.g_mse_loss.data[0] >  ( minierror * 10 )):
+                model.pretrain_G_step()
+                print("minierror",model.g_mse_loss.data[0])
+
+
+
 
             if total_steps % opt.print_freq == 0:
                 if opt.train_mode != 'vid_only':

@@ -22,7 +22,10 @@ class Vid2SeqModel(BaseModel):
         BaseModel.initialize(self, opt)
         self.dataset_mode = opt.dataset_mode
         self.isTrain = opt.isTrain
-
+        self.sensor_dim = 1
+        if opt.seq_type == 'action':
+            self.sensor_dim = 2
+        
         # define tensors
         # 3D tensor shape (N,Cin,Din,Hin,Win)
         # self.input_vid = self.Tensor(opt.batchSize, opt.input_nc,
@@ -44,13 +47,13 @@ class Vid2SeqModel(BaseModel):
                                         opt.norm, not opt.no_dropout, opt.init_type, self.gpu_ids)
 
         self.netG_seq = networks.define_G(opt.input_nc, opt.output_nc, opt.ngf, opt.which_model_netG_seq, 
-                                        opt.norm, not opt.no_dropout, opt.init_type, self.gpu_ids, input_height=64, input_width=64, sequence_dim=2)
+                                        opt.norm, not opt.no_dropout, opt.init_type, self.gpu_ids, input_height=64, input_width=64, sequence_dim=self.sensor_dim)
 
         if self.isTrain:
             use_sigmoid = opt.no_lsgan
             # change sequence_dim to 2 if the sequence is 'action'
             self.netD_seq = networks.define_D(opt.input_nc + opt.output_nc, opt.ndf, opt.which_model_netD_seq,
-                                              opt.n_layers_D, opt.norm, use_sigmoid, opt.init_type, self.gpu_ids, sequence_depth=opt.depth, sequence_dim=2)
+                                              opt.n_layers_D, opt.norm, use_sigmoid, opt.init_type, self.gpu_ids, sequence_depth=opt.depth, sequence_dim=self.sensor_dim)
             
             # self.netD_action = networks.define_D(opt.input_nc + opt.output_nc, opt.ndf, opt.which_model_netD_seq,
             #                                   opt.n_layers_D, opt.norm, use_sigmoid, opt.init_type, self.gpu_ids, 
@@ -66,7 +69,7 @@ class Vid2SeqModel(BaseModel):
             self.load_network(self.netG_seq, 'G_seq', opt.which_epoch)
             if self.isTrain:
                 self.load_network(self.netD_vid, 'D_vid', opt.which_epoch)
-                #self.load_network(self.netD_seq, 'D_seq', opt.which_epoch)
+                self.load_network(self.netD_seq, 'D_seq', opt.which_epoch)
 
         if self.isTrain:
             # 3D Change

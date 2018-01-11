@@ -154,13 +154,13 @@ def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropo
                                  use_dropout=use_dropout, n_blocks=1, gpu_ids=gpu_ids)
     elif which_model_netG == 'SeqRNNGenerator':
         netG = SeqRNNGenerator(input_nc, output_nc, rnn_input_size=196608, norm_layer=norm_layer, ngf=ngf,
-                                 use_dropout=use_dropout, n_blocks=1, gpu_ids=gpu_ids)
+                                 use_dropout=use_dropout, n_blocks=1, gpu_ids=gpu_ids, sensor_dim=sequence_dim)
     elif which_model_netG == 'SeqCNNGenerator':
         if input_height is None or input_width is None or sequence_dim is None:
             raise ValueError('Params input_height, input_width and sequence_dim is necessary.')
         netG = SeqCNNGenerator(input_nc, output_nc, ngf=ngf, norm_layer=norm_layer,
                                  use_dropout=use_dropout, n_blocks=6, gpu_ids=gpu_ids, 
-                                 input_height=input_height, input_width=input_width, sequence_dim=sequence_dim)
+                                 input_height=input_height, input_width=input_width, sensor_dim=sequence_dim)
     elif which_model_netG == 'ResnetVideoGenerator':
         netG = ResnetVideoGenerator(input_nc, output_nc, ngf=ngf, norm_layer=norm_layer,
                                  use_dropout=use_dropout, n_blocks=6, gpu_ids=gpu_ids)
@@ -699,7 +699,7 @@ class Action_D(nn.Module):
 
 # Added by Jeven 2017-12-24
 class ResnetVideoEncoder(nn.Module):
-    def __init__(self, input_nc, output_nc, num_downs=8, ngf=64, norm_layer=nn.BatchNorm2d, target_size=1,
+    def __init__(self, input_nc, output_nc, num_downs=8, ngf=64, norm_layer=nn.BatchNorm2d,
              use_dropout=False, n_blocks=1, gpu_ids=None, padding_type='reflect'):
         # Video encoder using part of Resnet architecture
         super(ResnetVideoEncoder, self).__init__()
@@ -786,7 +786,7 @@ class ResnetVideoGenerator(nn.Module):
 
 class SeqRNNGenerator(nn.Module):
     def __init__(self, input_nc, output_nc, num_downs=8, rnn_input_size=48576, rnn_hidden_size=300, rnn_num_layers=6,
-                 rnn_bidirectional=False, ngf=64, norm_layer=nn.BatchNorm2d, target_size=2,
+                 rnn_bidirectional=False, ngf=64, norm_layer=nn.BatchNorm2d, sensor_dim=1,
                  use_dropout=False, n_blocks=1, gpu_ids=None, padding_type='reflect'):
         assert (n_blocks >= 0)
 
@@ -795,7 +795,7 @@ class SeqRNNGenerator(nn.Module):
         self.output_nc = output_nc
         self.rnn_input_size = rnn_input_size  # 194304  196608   #之前这里是  48576 不知道哪里调整后这里变大了很多。rnn参数修改后还是大5倍
         self.rnn_hidden_size = rnn_hidden_size
-        self.target_size = target_size
+        self.sensor_dim = sensor_dim
         self.rnn_num_layers = rnn_num_layers
         self.rnn_bidirectional = rnn_bidirectional
         self.ngf = ngf
@@ -805,7 +805,7 @@ class SeqRNNGenerator(nn.Module):
         self.rnn_generator = nn.LSTM(input_size=self.rnn_input_size, hidden_size=self.rnn_hidden_size,
                                      num_layers=self.rnn_num_layers, bidirectional=self.rnn_bidirectional,
                                      batch_first=True)
-        self.rnn2out = nn.Linear(self.rnn_hidden_size, self.target_size)
+        self.rnn2out = nn.Linear(self.rnn_hidden_size, self.sensor_dim)
 
     def forward(self, inp):
         # if self.gpu_ids and isinstance(input_vid, torch.cuda.FloatTensor):
@@ -855,7 +855,7 @@ class SequenceGenerator(nn.Module):
     """
 
     def __init__(self, input_nc, output_nc, num_downs=8, rnn_input_size=48576, rnn_hidden_size=80, rnn_num_layers=3,
-                 rnn_bidirectional=False, ngf=64, norm_layer=nn.BatchNorm2d, target_size=1,
+                 rnn_bidirectional=False, ngf=64, norm_layer=nn.BatchNorm2d, sensor_dim=1,
                  use_dropout=False, n_blocks=1, gpu_ids=None, padding_type='reflect'):
         assert (n_blocks >= 0)
         super(SequenceGenerator, self).__init__()
@@ -863,7 +863,7 @@ class SequenceGenerator(nn.Module):
         self.output_nc = output_nc
         self.rnn_input_size = rnn_input_size  # 194304  196608   #之前这里是  48576 不知道哪里调整后这里变大了很多。rnn参数修改后还是大5倍
         self.rnn_hidden_size = rnn_hidden_size
-        self.target_size = target_size
+        self.sensor_dim = sensor_dim
         self.rnn_num_layers = rnn_num_layers
         self.rnn_bidirectional = rnn_bidirectional
         self.ngf = ngf
@@ -892,7 +892,7 @@ class SequenceGenerator(nn.Module):
         self.rnn_generator = nn.LSTM(input_size=self.rnn_input_size, hidden_size=self.rnn_hidden_size,
                                      num_layers=self.rnn_num_layers, bidirectional=self.rnn_bidirectional,
                                      batch_first=True)
-        self.rnn2out = nn.Linear(self.rnn_hidden_size, self.target_size)
+        self.rnn2out = nn.Linear(self.rnn_hidden_size, self.sensor_dim)
 
     def forward(self, inp):
 
@@ -940,12 +940,13 @@ class SeqCNNGenerator(nn.Module):
     """
     def __init__(self, input_nc, output_nc, ngf=64, norm_layer=nn.BatchNorm3d, use_dropout=False,
                  n_blocks=1, gpu_ids=[], padding_type='reflect', 
-                 input_height=None, input_width=None, sequence_dim=None):
+                 input_height=None, input_width=None, sensor_dim=None):
         super(SeqCNNGenerator, self).__init__()
         self.input_nc = input_nc
         self.output_nc = output_nc
         self.ngf = ngf
         self.gpu_ids = gpu_ids
+        self.sensor_dim = sensor_dim
         if type(norm_layer) == functools.partial:
             use_bias = norm_layer.func == nn.InstanceNorm3d
         else:
@@ -963,7 +964,7 @@ class SeqCNNGenerator(nn.Module):
 
         self.conv = nn.Sequential(*model)
 
-        model = [nn.Linear(output_nc * input_height * input_width, sequence_dim)] 
+        model = [nn.Linear(output_nc * input_height * input_width, self.sensor_dim)] 
         if use_dropout:
             model += [nn.Dropout(p=0.5)]
         model += [nn.LeakyReLU()]
@@ -1134,7 +1135,7 @@ class SeqCNNDiscriminator(nn.Module):
 if __name__ == '__main__':
     netE = ResnetVideoEncoder(input_nc=3, output_nc=None)
     netG_vid = ResnetVideoGenerator(input_nc=None, output_nc=3)
-    netG_seq = SeqCNNGenerator(input_nc=None, output_nc=3, input_height=5, input_width=5, sequence_dim=1)
+    netG_seq = SeqCNNGenerator(input_nc=None, output_nc=3, input_height=5, input_width=5, sensor_dim=1)
     netD_seq = SeqCNNDiscriminator(input_depth=10, input_dim=1)
     input_vid = torch.autograd.Variable(torch.randn(1, 3, 10, 20, 20))
     input_seq = torch.autograd.Variable(torch.randn(1, 10, 1))

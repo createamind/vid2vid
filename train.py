@@ -1,5 +1,5 @@
 import tensorflow as tf
-import time, os, cv2
+import time, os, cv2, datetime
 from options.train_options import TrainOptions
 from data.data_loader import CreateDataLoader
 from models.models import create_model
@@ -159,9 +159,9 @@ minierror = 1000000
 if opt.pretrain:
     print('=' * 20 + 'Pre-train Generator' + '=' * 20)
     with open(seq_log_file, 'a') as f:
-        f.write('=' * 20 + 'Pre-train Generator' + '=' * 20)
+        f.write('=' * 20 + 'Pre-train Generator' + '=' * 20 + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
     for epoch in epochs:
-        # for epoch in range(1):
+    # for epoch in range(1):
         epoch_start_time = time.time()
         epoch_iter = 0
 
@@ -184,15 +184,20 @@ if opt.pretrain:
 
             if total_steps % opt.print_freq == 0:
                 if opt.train_mode != 'vid_only':
-                    print("pretrain epoch: {}, iter: {}, g_mse_loss: {}, time: {} seconds/batch  \n minierror: {} ".format(
-                        epoch, i, model.g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize, minierror ))
-                    print("target seq:\n {} \ngenerated seq: {}".format(model.seq_A, model.seq_B_pred))
+                    print("{} Pretrain G epoch: {}, iter: {}, g_mse_loss: {}, time: {} seconds/batch  \n minierror: {} \ntarget seq:\n {} \ngenerated seq: {}".format(
+                        time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                        epoch, i, model.g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize, minierror, model.seq_A, model.seq_B_pred))
                     logger.scalar_summary('G__mse_loss', model.g_mse_loss.data[0], total_steps + 1)
                     with open(seq_log_file, 'a') as f:
-                        f.write("pretain:: target seq:\n {} \ngenerated seq: {}\n".format(model.seq_A.data, model.seq_B_pred.data))
+                        f.write("{} pretain:: target seq:\n {} \ngenerated seq: {}\n".format(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                            model.seq_A.data, model.seq_B_pred.data))
                 else:
-                    print("pretrain epoch: {}, iter: {}, g_GAN_loss: {}, time: {} seconds/batch".format(
+                    #print("{} Pretrain G epoch: {}, iter: {}, g_mse_loss: {}, time: {} seconds/batch  \n minierror: {} 
+                    #        target seq:\n {} \ngenerated seq: {}".format(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                    #    epoch, i, model.g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize, minierror, model.seq_A, model.seq_B_pred))
+                    print("{} Pretrain vid epoch: {}, iter: {}, g-GAN-loss: {}, time: {} seconds/batch".format(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
                         epoch, i, model.loss_G_GAN.data[0], (time.time() - iter_start_time) / opt.batchSize))
+                    
                     logger.scalar_summary('G_GAN_loss', model.loss_G_GAN.data[0], total_steps + 1)
 
             if total_steps % opt.save_latest_freq == 0:
@@ -205,7 +210,8 @@ if opt.pretrain:
     print(epochs)
     # pre-train discriminator
     print('=' * 20 + 'Pre-train Discriminator' + '=' * 20)
-    for epoch in epochs:
+    # for epoch in epochs:
+    for epoch in range(1):
         epoch_start_time = time.time()
         epoch_iter = 0
 
@@ -218,13 +224,13 @@ if opt.pretrain:
             model.pretrain_D_step()
             d_loss = model.d_loss
             if total_steps % opt.print_freq == 0:
-                print("pretrain epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(
+                print("{} Pretrain D epoch: {}, iter: {}, loss: {}, time: {} seconds/batch".format(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
                     epoch, i, d_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
 
                 logger.scalar_summary('pretrain_D_seq_loss', d_loss.data[0], total_steps+1)
 
             if total_steps % opt.save_latest_freq == 0:
-                print('saving the latest model (epoch %d, total_steps %d)' %
+                print('Saving the latest model (epoch %d, total_steps %d)' %
                       (epoch, total_steps))
                 model.save('latest')
 
@@ -235,7 +241,7 @@ if opt.pretrain:
 total_steps = 0
 # adversarial training
 print('=' * 20 + 'Adversarial Training' + '=' * 20)
-
+minierror = 1000000
 with open(seq_log_file, 'a') as f:
     f.write('=' * 20 + 'Adversarial Training' + '=' * 20)
 
@@ -262,6 +268,17 @@ for epoch in epochs:
         model.set_input(data)
         model.optimize_parameters()
 
+        # if loss big train for ever
+        if minierror > model.g_mse_loss.data[0]:
+            minierror = model.g_mse_loss.data[0]
+        while (model.g_mse_loss.data[0] > (minierror * 10000)):
+            model.optimize_parameters()
+            print("minierror", minierror, "now mse loss", model.g_mse_loss.data[0])
+            total_steps += 1
+
+
+
+
         if opt.train_mode != 'seq_only' and total_steps % opt.display_freq == 0:
             save_result = total_steps % opt.update_html_freq == 0
 
@@ -278,14 +295,15 @@ for epoch in epochs:
             #errors = model.get_current_errors()
             t = (time.time() - iter_start_time) / opt.batchSize
             if opt.train_mode != 'vid_only':
-                print("Adversarial epoch: {}, iter: {}, g-mse-loss: {}, time: {} seconds/batch".format(
-                    epoch, i, model.g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize))
+                info = "{} Adversarial epoch: {}, iter: {}, g-mse-loss: {}, time: {} seconds/batch".format(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                    epoch, i, model.g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize)
                 logger.scalar_summary('G__mse_loss', model.g_mse_loss.data[0], total_steps+1)
-                print("seq A :\n {} target seq:\n {} \ngenerated seq: {}".format(model.seq_A,model.seq_B, model.seq_B_pred))
+                print(info + "\nseq A :\n {} target seq:\n {} \ngenerated seq: {}".format(model.seq_A,model.seq_B, model.seq_B_pred))
                 with open(seq_log_file, 'a') as f:
-                    f.write("seq A :\n {} target seq:\n {} \ngenerated seq: {}\n".format(model.seq_A.data,model.seq_B.data, model.seq_B_pred.data))
+                    f.write("{} seq A :\n {} target seq:\n {} \ngenerated seq: {}\n".format(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                        model.seq_A.data,model.seq_B.data, model.seq_B_pred.data))
             else:
-                print("Adversarial epoch: {}, iter: {}, g-GAN-loss: {}, time: {} seconds/batch".format(
+                print("{} Adversarial epoch: {}, iter: {}, g-GAN-loss: {}, time: {} seconds/batch".format(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
                                         epoch, i, model.loss_G_GAN.data[0], (time.time() - iter_start_time) / opt.batchSize))
 
 

@@ -50,7 +50,7 @@ class Vid2SeqModel(BaseModel):
             use_sigmoid = opt.no_lsgan
             # change sequence_dim to 2 if the sequence is 'action'
             self.netD_seq = networks.define_D(opt.input_nc + opt.output_nc, opt.ndf, opt.which_model_netD_seq,
-                                              opt.n_layers_D, opt.norm, use_sigmoid, opt.init_type, self.gpu_ids, sequence_depth=opt.depth, sequence_dim=1) 
+                                              opt.n_layers_D, opt.norm, use_sigmoid, opt.init_type, self.gpu_ids, sequence_depth=opt.depth, sequence_dim=2)
             
             # self.netD_action = networks.define_D(opt.input_nc + opt.output_nc, opt.ndf, opt.which_model_netD_seq,
             #                                   opt.n_layers_D, opt.norm, use_sigmoid, opt.init_type, self.gpu_ids, 
@@ -66,7 +66,7 @@ class Vid2SeqModel(BaseModel):
             self.load_network(self.netG_seq, 'G_seq', opt.which_epoch)
             if self.isTrain:
                 self.load_network(self.netD_vid, 'D_vid', opt.which_epoch)
-                self.load_network(self.netD_seq, 'D_seq', opt.which_epoch)
+                #self.load_network(self.netD_seq, 'D_seq', opt.which_epoch)
 
         if self.isTrain:
             # 3D Change
@@ -281,8 +281,8 @@ class Vid2SeqModel(BaseModel):
         real_cat_seq = torch.cat([self.seq_A, self.seq_B], 1)
         
         label_size = list(fake_cat_seq.size())
-        target_seq_real = Variable(torch.ones(label_size[0], label_size[2]))
-        target_seq_fake = Variable(torch.zeros(label_size[0], label_size[2]))
+        target_seq_real = Variable(torch.ones(label_size[0], 1))
+        target_seq_fake = Variable(torch.zeros(label_size[0], 1))
 
         # warnings.warn("Using a target size ({}) that is different to the input size ({}) is deprecated. "
         #               "Please ensure they have the same size.".format(self.seq_B.size(), target_real.size()))

@@ -57,5 +57,7 @@ python train.py --dataset_mode v --model vid2seq_model --which_model_netG_seq Se
 #train action
 python train.py --dataset_mode v --model vid2seq_model --which_model_netG_seq SeqRNNGenerator --which_direction AtoB --norm batch --niter 10 --niter_decay 10 --batchSize 1 --name pretrain-rnn-oneenv-lessdata10000-actionA --depth 30 --max_dataset_size 5000 --output_nc 3 --input_nc 3 --sensor_types angle,speedX,action --data_dir /data/dataset/torcs_data/aalborg/ --input_num 2 --gpu_ids 1 --train_mode seq_only --print_freq 2 --pretrain --seq_type action --continue_train
 
+python train.py --dataset_mode v --model vid2seq_model --which_model_netG_seq SeqRNNGenerator --which_direction AtoB --norm batch --niter 10 --niter_decay 10 --batchSize 1 --name  pretrain-rnn-oneenv-lessdata10000-actionA --depth 30 --max_dataset_size 5000 --output_nc 3 --input_nc 3 --sensor_types angle,speedX,action --data_dir '/data/dataset/torcs_data/aalborg/' --input_num 2 --gpu_ids 1  --train_mode seq_only --print_freq 2 --pretrain  --seq_type action --continue_train
+python train.py --dataset_mode v --model vid2seq_model --which_model_netG_seq SeqRNNGenerator --which_direction AtoB --norm batch --niter 10 --niter_decay 10 --batchSize 1 --name  pretrain-rnn-oneenv-lessdata10000-actionA --depth 30 --max_dataset_size 5000 --output_nc 3 --input_nc 3 --sensor_types angle,speedX,action --data_dir '/data/dataset/torcs_data/aalborg/' --input_num 2 --gpu_ids 0  --train_mode seq_only --print_freq 2 --pretrain  --seq_type action --continue_train
 
 

@@ -1059,27 +1059,29 @@ params: input_depth - the length of the input sequence;
         input_dim - dimension of input sequence
 """
 class SeqCNNDiscriminator(nn.Module):
-    def __init__(self, input_depth, input_dim, ndf=64, norm_layer=nn.BatchNorm2d,
+    def __init__(self, input_depth=30, input_dim = 2 , ndf=64, norm_layer=nn.BatchNorm1d,
                  use_dropout=False, use_sigmoid=True, gpu_ids=None):
         super(SeqCNNDiscriminator, self).__init__()
         self.gpu_ids = gpu_ids
         if type(norm_layer) == functools.partial:
-            use_bias = norm_layer.func == nn.InstanceNorm2d
+            use_bias = norm_layer.func == nn.InstanceNorm1d
         else:
-            use_bias = norm_layer == nn.InstanceNorm2d
+            use_bias = norm_layer == nn.InstanceNorm1d
 
-        conv_module = [nn.Conv2d(in_channels=1, out_channels=ndf, kernel_size=(2, input_dim),bias=use_bias),
+        # conv_module = [nn.Conv2d(in_channels=1, out_channels=ndf, kernel_size=(2, input_dim), stride=(1, 0), bias=use_bias),
+        conv_module = [nn.Conv1d(in_channels=input_dim, out_channels=ndf, kernel_size=2, bias=use_bias),
                        norm_layer(ndf),
                        nn.ReLU()]
 
-        conv_module += [nn.Conv2d(in_channels=ndf, out_channels=ndf * 2, kernel_size=(2, input_dim),bias=use_bias),
-                       norm_layer(ndf*2),
+        # conv_module += [nn.Conv2d(in_channels=ndf, out_channels=ndf * 2, kernel_size=(2, input_dim), stride=(1, 0), bias=use_bias),
+        conv_module += [nn.Conv1d(in_channels=ndf, out_channels=input_dim, kernel_size=2,bias=use_bias),
+                       norm_layer(input_dim),
                        nn.ReLU()]
 
         self.conv_module = nn.Sequential(*conv_module)
 
         # reshape and feed to fcn
-        output_module = [nn.Linear(2 * ndf * (input_depth - 2) * input_dim, 100)]
+        output_module = [nn.Linear((input_depth - 2) * input_dim, 100)]
         output_module += [nn.ReLU()]
         if use_dropout:
             output_module += [nn.Dropout(p=0.5)]
@@ -1094,7 +1096,7 @@ class SeqCNNDiscriminator(nn.Module):
         """
         if self.gpu_ids and isinstance(inp.data, torch.cuda.FloatTensor):
             out = nn.parallel.data_parallel(self.conv_module,
-                                            inp.view(inp.size()[0], 1, inp.size()[1], inp.size()[2]),
+                                            inp.permute(0, 2, 1),
                                             self.gpu_ids)
             return nn.parallel.data_parallel(self.output_module, out.view(out.size()[0], -1), self.gpu_ids)
         else:
@@ -1109,6 +1111,7 @@ class SeqCNNDiscriminator(nn.Module):
         Returns: out
             - out: batch_size ([0,1] score)
         """
+
         out = self.forward(input)
         return out.view(out.size()[0], -1)
 

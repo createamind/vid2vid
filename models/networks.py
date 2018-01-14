@@ -126,7 +126,7 @@ def define_E(input_nc, output_nc, ngf, which_model_encoder, norm='batch', use_dr
 TODO separate Gnerator from video encoder - feature extractor
 """
 def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropout=False, init_type='normal',
-             gpu_ids=[], input_height=None, input_width=None, sequence_dim=None):
+             gpu_ids=[], input_height=None, input_width=None, sequence_dim=None, rnn_input_dim=None, rnn_num_layers=None):
     netG = None
     use_gpu = len(gpu_ids) > 0
     norm_layer = get_norm_layer(norm_type=norm)
@@ -150,10 +150,10 @@ def define_G(input_nc, output_nc, ngf, which_model_netG, norm='batch', use_dropo
         netG = SensorGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=1,
                                gpu_ids=gpu_ids)
     elif which_model_netG == 'SequenceGenerator':
-        netG = SequenceGenerator(input_nc, output_nc, rnn_input_size=196608, norm_layer=norm_layer, ngf=ngf,
+        netG = SequenceGenerator(input_nc, output_nc, rnn_input_size=rnn_input_dim, norm_layer=norm_layer, ngf=ngf,
                                  use_dropout=use_dropout, n_blocks=1, gpu_ids=gpu_ids)
     elif which_model_netG == 'SeqRNNGenerator':
-        netG = SeqRNNGenerator(input_nc, output_nc, rnn_input_size=196608, norm_layer=norm_layer, ngf=ngf,
+        netG = SeqRNNGenerator(input_nc, output_nc, rnn_input_dim=rnn_input_dim, norm_layer=norm_layer, ngf=ngf, rnn_num_layers=rnn_num_layers,
                                  use_dropout=use_dropout, n_blocks=1, gpu_ids=gpu_ids, sensor_dim=sequence_dim)
     elif which_model_netG == 'SeqCNNGenerator':
         if input_height is None or input_width is None or sequence_dim is None:
@@ -730,6 +730,11 @@ class ResnetVideoEncoder(nn.Module):
             model += [ResnetBlock_3d(ngf * mult, padding_type=padding_type, norm_layer=norm_layer,
                                      use_dropout=use_dropout, use_bias=use_bias),
                       ]
+        if output_nc is not None:
+            model += [nn.Conv3d(ngf * mult, output_nc, kernel_size=(3, 7, 7), padding=(1, 3, 3),
+                        bias=use_bias),
+                        norm_layer(output_nc),
+                        nn.ReLU(True)]
         self.model = nn.Sequential(*model)
         pass
 
@@ -785,7 +790,7 @@ class ResnetVideoGenerator(nn.Module):
             return self.model(inp)
 
 class SeqRNNGenerator(nn.Module):
-    def __init__(self, input_nc, output_nc, num_downs=8, rnn_input_size=48576, rnn_hidden_size=300, rnn_num_layers=6,
+    def __init__(self, input_nc, output_nc, num_downs=8, rnn_input_dim=48576, rnn_hidden_dim=300, rnn_num_layers=6,
                  rnn_bidirectional=False, ngf=64, norm_layer=nn.BatchNorm2d, sensor_dim=1,
                  use_dropout=False, n_blocks=1, gpu_ids=None, padding_type='reflect'):
         assert (n_blocks >= 0)
@@ -793,8 +798,8 @@ class SeqRNNGenerator(nn.Module):
         super(SeqRNNGenerator, self).__init__()
         self.input_nc = input_nc
         self.output_nc = output_nc
-        self.rnn_input_size = rnn_input_size  # 194304  196608   #之前这里是  48576 不知道哪里调整后这里变大了很多。rnn参数修改后还是大5倍
-        self.rnn_hidden_size = rnn_hidden_size
+        self.rnn_input_size = rnn_input_dim  # 194304  196608   #之前这里是  48576 不知道哪里调整后这里变大了很多。rnn参数修改后还是大5倍
+        self.rnn_hidden_size = rnn_hidden_dim
         self.sensor_dim = sensor_dim
         self.rnn_num_layers = rnn_num_layers
         self.rnn_bidirectional = rnn_bidirectional

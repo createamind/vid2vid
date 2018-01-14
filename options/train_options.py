@@ -37,5 +37,6 @@ class TrainOptions(BaseOptions):
         self.parser.add_argument('--seq_type', type=str, default='speedX', help='training sequence type: speedX, angle or action')
         self.parser.add_argument('--pretrain', action='store_true', help='enable pretraining of Gs and Ds, followed by adversarial training')
         self.parser.add_argument('--target_seq', type=str, default='A', help='Target of sequence generator')
+        self.parser.add_argument('--use_encoder', action='store_true', help='use video encoder for sequence generation')
 
         self.isTrain = True

@@ -40,14 +40,15 @@ class Vid2SeqModel(BaseModel):
 
         # load/define networks
         # video encoder model netE = net encoder
-        self.netE = networks.define_E(opt.input_nc, opt.output_nc, opt.ngf, opt.which_model_netE, 
+        self.netE = networks.define_E(opt.input_nc, 32, opt.ngf, opt.which_model_netE, 
                                         opt.norm, not opt.no_dropout, opt.init_type, self.gpu_ids)
 
         self.netG_vid = networks.define_G(opt.input_nc, opt.output_nc, opt.ngf, opt.which_model_netG_vid, 
                                         opt.norm, not opt.no_dropout, opt.init_type, self.gpu_ids)
 
         self.netG_seq = networks.define_G(opt.input_nc, opt.output_nc, opt.ngf, opt.which_model_netG_seq, 
-                                        opt.norm, not opt.no_dropout, opt.init_type, self.gpu_ids, input_height=64, input_width=64, sequence_dim=self.sensor_dim)
+                                        opt.norm, not opt.no_dropout, opt.init_type, self.gpu_ids, input_height=64, input_width=64, 
+                                        sequence_dim=self.sensor_dim, rnn_input_dim=131072, rnn_num_layers=1)
 
         if self.isTrain:
             use_sigmoid = opt.no_lsgan
@@ -173,8 +174,13 @@ class Vid2SeqModel(BaseModel):
             self.encoded_A = self.netE(self.input_A)
             self.fake_B = self.netG_vid(self.encoded_A)
         if self.opt.train_mode != 'vid_only':
-            self.seq_B_pred = self.netG_seq(self.real_A)
-            self.g_mse_loss = self.netG_seq.batch_mse_loss(self.real_A, self.seq_B)
+            if self.opt.use_encoder:
+                self.encoded_A = self.netE(self.input_A)
+                self.seq_B_pred = self.netG_seq(self.encoded_A)
+                self.g_mse_loss = self.netG_seq.batch_mse_loss(self.encoded_A, self.seq_B)
+            else:
+                self.seq_B_pred = self.netG_seq(self.real_A)
+                self.g_mse_loss = self.netG_seq.batch_mse_loss(self.real_A, self.seq_B)
 
     def backward_D(self):
         if self.opt.train_mode != 'seq_only':

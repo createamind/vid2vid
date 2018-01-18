@@ -23,6 +23,8 @@ class Vid2SeqModel(BaseModel):
         self.dataset_mode = opt.dataset_mode
         self.isTrain = opt.isTrain
         self.sensor_dim = 1
+        self.minierror = 1000000
+
         if opt.seq_type == 'action':
             self.sensor_dim = 2
         
@@ -251,15 +253,33 @@ class Vid2SeqModel(BaseModel):
             self.loss_G_L1 = self.loss_G_L1_vid + self.loss_G_L1_seq
 
 
-    def pretrain_G_step(self):
+    def pretrain_G_step(self,minierror):
         # TODO add triger for pretrain G_vid or G_seq
         # print(self.input_vid.size())
         self.forward()
-        if self.opt.train_mode == 'seq_only':
-            #self.seq_B_pred = self.netG_seq.gen_seq
+        if self.minierror > model.g_mse_loss.data[0]:
+            self.minierror = model.g_mse_loss.data[0]
+
+        if self.opt.train_mode == 'seq_only' and  self.g_mse_loss.data[0] > minierror * 5000 :
+            # if self.opt.train_mode == 'seq_only':
+            # self.seq_B_pred = self.netG_seq.gen_seq
             self.optimizer_G_seq.zero_grad()
             self.g_mse_loss.backward(retain_graph=True)
             self.optimizer_G_seq.step()
+
+            # if loss big train for ever
+            step = 0
+            while (self.g_mse_loss.data[0] > (minierror * 500000)):
+                self.optimizer_G_seq.zero_grad()
+                self.g_mse_loss.backward(retain_graph=True)
+                self.optimizer_G_seq.step()
+
+                print("minierror", self.minierror, "now mse loss", self.g_mse_loss.data[0],"step",step)
+                step += 1
+                if step > 1000:
+                    break
+
+
         elif self.opt.train_mode == 'vid_only':
             self.optimizer_D_vid.zero_grad()
             self.backward_D()

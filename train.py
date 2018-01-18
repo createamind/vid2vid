@@ -154,13 +154,16 @@ for tag, value in net.named_parameters():
 
 # pretrain generator
 epochs = range(opt.epoch_count, (opt.niter + opt.niter_decay + 1)*3)
-print(epochs)
-minierror = 1000000
+preG_epochs = range(0)
+preD_epochs = range(0)
+
+
 if opt.pretrain:
     print('=' * 20 + 'Pre-train Generator' + '=' * 20)
+    print('epochs: ', preG_epochs)
     with open(seq_log_file, 'a') as f:
         f.write('=' * 20 + 'Pre-train Generator' + '=' * 20 + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
-    for epoch in epochs:
+    for epoch in preG_epochs:
     # for epoch in range(1):
         epoch_start_time = time.time()
         epoch_iter = 0
@@ -173,15 +176,6 @@ if opt.pretrain:
             model.set_input(data)
             model.pretrain_G_step()
 
-            #if loss big train for ever
-            if minierror > model.g_mse_loss.data[0] :
-                minierror = model.g_mse_loss.data[0]
-            while ( model.g_mse_loss.data[0] >  ( minierror * 500000 )):
-                model.pretrain_G_step()
-                print("minierror",minierror, "now mse loss" ,model.g_mse_loss.data[0])
-                total_steps += 1
-
-
             if total_steps % opt.print_freq == 0:
                 if opt.train_mode != 'vid_only':
                     print("{} Pretrain G epoch: {}, iter: {}, g_mse_loss: {}, time: {} seconds/batch  \n minierror: {} \ntarget seq:\n {} \ngenerated seq: {}".format(
@@ -189,8 +183,11 @@ if opt.pretrain:
                         epoch, i, model.g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize, minierror, model.seq_A, model.seq_B_pred))
                     logger.scalar_summary('G__mse_loss', model.g_mse_loss.data[0], total_steps + 1)
                     with open(seq_log_file, 'a') as f:
-                        f.write("{} pretain:: target seq:\n {} \ngenerated seq: {}\n".format(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
-                            model.seq_A.data, model.seq_B_pred.data))
+                        # f.write("{} pretain:: target seq:\n {} \ngenerated seq: {}\n".format(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                        #     model.seq_A.data, model.seq_B_pred.data))
+                        f.write("{} Pretrain G epoch: {}, iter: {}, g_mse_loss: {}, time: {} seconds/batch  \n minierror: {} \ntarget seq:\n {} \ngenerated seq: {}".format(
+                        time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+                        epoch, i, model.g_mse_loss.data[0], (time.time() - iter_start_time) / opt.batchSize, minierror, model.seq_A, model.seq_B_pred))
                 else:
                     #print("{} Pretrain G epoch: {}, iter: {}, g_mse_loss: {}, time: {} seconds/batch  \n minierror: {} 
                     #        target seq:\n {} \ngenerated seq: {}".format(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
@@ -206,12 +203,13 @@ if opt.pretrain:
                 model.save('latest')
         print('End of epoch %d / %d \t Time Taken: %d sec' %
               (epoch, opt.niter + opt.niter_decay, time.time() - epoch_start_time))
+    
     total_steps = 0
-    print(epochs)
     # pre-train discriminator
     print('=' * 20 + 'Pre-train Discriminator' + '=' * 20)
+    print(preD_epochs)
     # for epoch in epochs:
-    for epoch in range(1):
+    for epoch in preD_epochs:
         epoch_start_time = time.time()
         epoch_iter = 0
 
@@ -269,12 +267,12 @@ for epoch in epochs:
         model.optimize_parameters()
 
         # if loss big train for ever
-        if minierror > model.g_mse_loss.data[0]:
-            minierror = model.g_mse_loss.data[0]
-        while (model.g_mse_loss.data[0] > (minierror * 10000)):
-            model.optimize_parameters()
-            print("minierror", minierror, "now mse loss", model.g_mse_loss.data[0])
-            total_steps += 1
+        # if minierror > model.g_mse_loss.data[0]:
+        #     minierror = model.g_mse_loss.data[0]
+        # while (model.g_mse_loss.data[0] > (minierror * 10000)):
+        #     model.optimize_parameters()
+        #     print("minierror", minierror, "now mse loss", model.g_mse_loss.data[0])
+        #     total_steps += 1
 
 
 

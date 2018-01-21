@@ -475,7 +475,7 @@ class NLayerDiscriminator(nn.Module):
             use_bias = norm_layer == nn.InstanceNorm3d
 
         ## TODO: D kernel 4
-        kw = [3, 4, 4]
+        kw = (3, 4, 4)
         padw = 1
         # s = [1, 2, 2]
         sequence = [
@@ -575,7 +575,7 @@ class SensorGenerator(nn.Module):
         n_downsampling = 2
         for i in range(n_downsampling):
             mult = 2 ** i
-            model += [nn.Conv3d(ngf * mult, ngf * mult * 2, kernel_size=[3, 3, 3],
+            model += [nn.Conv3d(ngf * mult, ngf * mult * 2, kernel_size=(3, 3, 3),
                                 stride=(1, 2, 2), padding=(1, 1, 1), bias=use_bias),
                       norm_layer(ngf * mult * 2),
                       nn.ReLU(True)]
@@ -593,13 +593,13 @@ class SensorGenerator(nn.Module):
             mult = 2 ** (n_downsampling - i)
 
             model += [nn.ConvTranspose3d(ngf * mult, int(ngf * mult / 2),
-                                         kernel_size=[3, 3, 3], stride=(1, 2, 2),
+                                         kernel_size=(3, 3, 3), stride=(1, 2, 2),
                                          padding=(1, 1, 1),
                                          bias=use_bias),
                       norm_layer(int(ngf * mult / 2)),
                       nn.ReLU(True)]
-        model += [nn.Conv3d(ngf, output_nc, kernel_size=[3, 7, 7], padding=(1, 3, 3)),
-                  nn.Conv3d(output_nc, output_nc, kernel_size=[3, 6, 6], padding=(1, 4, 4), stride=(1, 1, 1), ), ]
+        model += (nn.Conv3d(ngf, output_nc, kernel_size=(3, 7, 7), padding=(1, 3, 3)),
+                  nn.Conv3d(output_nc, output_nc, kernel_size=(3, 6, 6), padding=(1, 4, 4), stride=(1, 1, 1), ),)
         model += [nn.Tanh()]
 
         self.model = nn.Sequential(*model)
@@ -720,7 +720,7 @@ class ResnetVideoEncoder(nn.Module):
         n_downsampling = 2
         for i in range(n_downsampling):
             mult = 2 ** i
-            model += [nn.Conv3d(ngf * mult, ngf * mult * 2, kernel_size=[3, 3, 3],
+            model += [nn.Conv3d(ngf * mult, ngf * mult * 2, kernel_size=(3, 3, 3),
                                 stride=(1, 2, 2), padding=(1, 1, 1), bias=use_bias),
                       norm_layer(ngf * mult * 2),
                       nn.ReLU(True)]
@@ -956,7 +956,7 @@ class SeqCNNGenerator(nn.Module):
             use_bias = norm_layer.func == nn.InstanceNorm3d
         else:
             use_bias = norm_layer == nn.InstanceNorm3d
-        if input_height is None or input_width is None or sequence_dim is None:
+        if input_height is None or input_width is None or sensor_dim is None:
             raise ValueError('Params input_height, input_width and sequence_dim is necessary.')
 
         n_downsampling = 2

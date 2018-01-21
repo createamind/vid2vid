@@ -5,7 +5,7 @@ import functools
 import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.optim import lr_scheduler
-
+from .encoders import DenseNetVideoEncoder
 
 ###############################################################################
 # Functions
@@ -114,6 +114,8 @@ def define_E(input_nc, output_nc, ngf, which_model_encoder, norm='batch', use_dr
     if which_model_encoder == "ResnetVideoEncoder":
         encoder = ResnetVideoEncoder(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, 
                                     n_blocks=6, gpu_ids=gpu_ids)
+    elif which_model_encoder == "DenseNetVideoEncoder":
+        encoder = DenseNetVideoEncoder()
     else:
         raise NotImplementedError('Video encoder model name [%s] is not recognized' % which_model_encoder)
     if use_gpu > 0:
@@ -751,7 +753,7 @@ class ResnetVideoGenerator(nn.Module):
     Added by: Jeven, 2018.1.3
     """
     def __init__(self, input_nc, output_nc, ngf=64, norm_layer=nn.BatchNorm3d, use_dropout=False,
-                 n_blocks=6, gpu_ids=[], padding_type='reflect'):
+                 n_blocks=6, gpu_ids=None, padding_type='reflect'):
         assert (n_blocks >= 0)
         super(ResnetVideoGenerator, self).__init__()
         self.input_nc = input_nc
@@ -788,6 +790,45 @@ class ResnetVideoGenerator(nn.Module):
             return nn.parallel.data_parallel(self.model, inp, self.gpu_ids)
         else:
             return self.model(inp)
+
+
+class DenseNetVideoGenerator(nn.Module):
+    """
+    Video generator based on DenseNetVideoEncoder
+    Added by: Jeven, 2018.1.20
+    """
+    def __init__(self, gpu_ids=None, padding_type='reflect'):
+        super(DenseNetVideoGenerator, self).__init__()
+        self.gpu_ids = gpu_ids
+        norm_layer = nn.BatchNorm3d
+        n_downsampling = 2
+        ngf = 64
+        use_bias = True
+
+        model = []
+        for i in range(n_downsampling):
+            mult = 2 ** (n_downsampling - i)
+            model += [nn.ConvTranspose3d(ngf * mult, int(ngf * mult / 2),
+                                         kernel_size=(3, 3, 3), stride=(1, 2, 2),
+                                         padding=(1, 1, 1),
+                                         bias=use_bias),
+                      norm_layer(int(ngf * mult / 2)),
+                      nn.ReLU(True)]
+
+        model += [nn.Conv3d(ngf, 3, kernel_size=(3, 7, 7), padding=(1, 3, 3)),
+                  norm_layer(3),
+                  nn.Conv3d(3, 3, kernel_size=(3, 6, 6), padding=(1, 4, 4), stride=(1, 1, 1))
+                  ]
+        model += [nn.Tanh()]
+        self.model = nn.Sequential(*model)
+
+    def forward(self, inp):
+        # todo test
+        if self.gpu_ids and isinstance(inp.data, torch.cuda.FloatTensor):
+            return nn.parallel.data_parallel(self.model, inp, self.gpu_ids)
+        else:
+            return self.model(inp)
+
 
 class SeqRNNGenerator(nn.Module):
     def __init__(self, input_nc, output_nc, num_downs=8, rnn_input_dim=48576, rnn_hidden_dim=300, rnn_num_layers=6,

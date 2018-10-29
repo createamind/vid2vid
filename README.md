@@ -20,3 +20,6 @@ Video2XYZ
 对于progressGAN--pix2pixHD想法是 can train pred angle /2(左右) /4(大左小左 大右小右) /8  图像的越来越精细到功能训练的准确度越来越高。
 
 !Curiosity-driven Exploration by Self-supervised Prediction
+
+
+new ref  https://github.com/createamind/keras-cpcgan

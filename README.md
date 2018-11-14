@@ -4,6 +4,9 @@ fork from https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix
 
 a.sh is train cmd
 
+python train.py --dataroot ./dataset/ucf-npy/ --dataset_mode v --model pix2pix --which_model_netG unet_256 --which_direction AtoB --norm batch --niter 10 --niter_decay 10 --batchSize 1 --name virtualkittidepth --depth 7 --max_dataset_size 150 --output_nc 3 --input_nc 3 --gpu_ids 0 --data_dir ./dataset/UCF/v_BabyCrawling**.avi --load_video 1  ：：run ok
+
+
 
 
 Video2XYZ
